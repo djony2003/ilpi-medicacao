@@ -12,3 +12,6 @@ next-env.d.ts
 
 # Armazenamento local de receitas (dado de saúde): nunca commitar
 .armazenamento
+
+# PDFs gerados pela demonstração (contêm códigos de pulseira)
+demo

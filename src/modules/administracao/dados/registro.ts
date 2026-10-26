@@ -193,6 +193,8 @@ export type ConferenciaDaDose = {
   lote: { numeroLote: string; validade: string; saldo: number; unidade: string } | null;
   bloqueios: Bloqueio[];
   horario: { tipo: "livre" } | { tipo: "exige_motivo"; sentido: "atrasado" | "adiantado" };
+  /** Até quando a dose pode ser adiada (horário previsto + limite maior da casa). */
+  adiarAte: string;
   exigeSegundaValidacao: boolean;
   historico: RegistroDaDose[];
 };
@@ -281,6 +283,9 @@ export async function conferirDoseAgendada(
           : null,
         bloqueios,
         horario: horario.tipo === "bloqueio" ? { tipo: "livre" } : horario,
+        adiarAte: new Date(
+          d.prevista_em.getTime() + casa.janela.limiteMaiorMin * 60_000,
+        ).toISOString(),
         exigeSegundaValidacao: d.alto_risco,
         historico: h,
       },

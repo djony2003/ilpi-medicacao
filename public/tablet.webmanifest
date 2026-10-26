@@ -1,0 +1,11 @@
+{
+  "name": "ILPI Medicação — Tablet do posto",
+  "short_name": "Medicação",
+  "start_url": "/tablet",
+  "scope": "/tablet",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#EEF2F0",
+  "theme_color": "#14283A",
+  "lang": "pt-BR"
+}

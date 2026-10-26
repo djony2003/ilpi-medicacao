@@ -1,11 +1,13 @@
 # Handoff
 
-**De:** Implementação, marco M4 concluído
-**Para:** M5 (administração com conferência por QR), após o aval do usuário
+**De:** Implementação, marco M5 concluído
+**Para:** Demonstração do registro com QR ao usuário; depois, M6 (alertas)
 **Data:** 2026-10-26
 
 ## Onde estamos
-Código em `/home/claude/ilpi` (repositório git próprio, com o histórico do `.10x`; remoto privado `djony2003/ilpi-medicacao`). M0 a M3 prontos: fundação, identidade (login com senha e TOTP, PIN no tablet aprovado, sessões, permissões, gestão de usuários), auditoria encadeada, API HTTP com malha de vazamento, idosos com pulseira QR e PDF, prescrições versionadas com receita cifrada, escala de doses (geração idempotente com fuso e horário de verão, agendador, escala do plantão e folha de contingência em PDF) e estoque (lotes com etiqueta QR, fracionamento para o idoso, saídas com reautenticação, previsão de término, lista de reposição em PDF, sobras e inventário com ajustes justificados). Detalhes em `.10x/decisions/sde/medicacao-ilpi.md` e `.10x/decisions/dba/medicacao-ilpi.md`; decisões em `.10x/adrs/` (001 monólito modular com RLS, 002 busca por chave secreta sob RLS).
+Código em `/home/claude/ilpi` (repositório git próprio, com o histórico do `.10x`; remoto privado `djony2003/ilpi-medicacao`). M0 a M3 prontos: fundação, identidade (login com senha e TOTP, PIN no tablet aprovado, sessões, permissões, gestão de usuários), auditoria encadeada, API HTTP com malha de vazamento, idosos com pulseira QR e PDF, prescrições versionadas com receita cifrada, escala de doses (geração idempotente com fuso e horário de verão, agendador, escala do plantão e folha de contingência em PDF) estoque (lotes com etiqueta QR, fracionamento para o idoso, saídas com reautenticação, previsão de término, lista de reposição em PDF, sobras e inventário com ajustes justificados) e administração (registro com conferência por QR, exceção, segunda validação, SOS, registro tardio) com as telas do tablet em `/tablet`.
+
+Demonstração: `npm run demo` cria uma casa com equipe, tablet, residentes, remédios e doses para os próximos minutos, e grava os PDFs de pulseiras e etiquetas em `./demo`. `npm run e2e:tablet` (com o servidor no ar) percorre as telas num Chromium com câmera simulada. Detalhes em `.10x/decisions/sde/medicacao-ilpi.md` e `.10x/decisions/dba/medicacao-ilpi.md`; decisões em `.10x/adrs/` (001 monólito modular com RLS, 002 busca por chave secreta sob RLS).
 
 Para rodar: `docker compose up -d` (ou um PostgreSQL 16 local), `cp .env.example .env`, `npm install`, `npm run db:setup && npm run db:migrar`, `npm run verificar`.
 
@@ -41,11 +43,19 @@ Para rodar: `docker compose up -d` (ou um PostgreSQL 16 local), `cp .env.example
 - **Previsão é simulação dose a dose** (`dominio/previsao.ts`), FEFO, ignorando lote vencido; as "reservas" decidem se a prescrição consome do estoque individual ou do comum.
 - **STATUS_DE_FALHA** em `src/web/rota.ts`: falha nova precisa de status lá.
 
+## Padrões que M5 acrescentou
+- **Registro sem estado no servidor:** o tablet manda tudo o que leu a cada chamada; `registrarDose` trava a dose (`FOR UPDATE`) e refaz a conferência inteira (`conferirDose`, pura) dentro da transação que grava. A tela nunca decide sozinha.
+- **Idempotência:** chave UUID gerada pelo tablet por abertura da dose; conferida DEPOIS da trava (o reenvio simultâneo enxerga o primeiro). Índice único parcial `administracao_final_unica` como última barreira.
+- **PIN de outra pessoa** (`confirmarPinDeOutraPessoa`, identidade) roda na transação de quem registra, com o mesmo contador de erros do login; na falha, nada além do contador é gravado.
+- **Coerência no banco:** gatilho `administracao_coerente` (dose, prescrição, idoso e lote batem) e consumo de estoque com FK para a administração.
+- **Bloqueio é dado, não erro:** `conferencia_bloqueada` com a lista de bloqueios (mensagem e ação da tabela 5.4) e auditoria `administracao.bloqueada` (quase-erro).
+- **Telas (`src/app/tablet`):** cliente puro, só `import type` do servidor; leitor de QR com `BarcodeDetector` e reserva no jsQR, câmera contínua com pausa durante a conferência e descarte do código recém-recusado ou já aceito. Batida de conexão numa rota do APARELHO (`/tablet/usuarios`), para não renovar a sessão.
+
 ## Próximas tarefas
-M5 (T35 a T46): registro da administração com conferência QR (pulseira `ILPI:I:` + etiqueta `ILPI:L:`). Pendências do M4 para lá: FK de `movimento_estoque.administracao_id`; consumo FEFO recusando lote vencido (`loteVencido`); conversão de unidade (mg x comprimido); média SOS dos últimos 14 dias para a previsão; rota para localizar lote pelo QR.
+Demonstração do registro com QR ao usuário (ponto de decisão). Depois, M6 (T47 a T52): alertas (dose sem registro avisa o enfermeiro, SOS bloqueado, estoque baixo, vencimento). Pendências do M5: testar num tablet real (câmera, som, vibração, quiosque, `BarcodeDetector`); exceção de conferência para SOS só pela API (a tela não oferece); conversão de unidade continua bloqueando (mg x comprimido); média SOS real na previsão de estoque; telas web de gestão (cadastros, estoque, relatório de exceções) ainda não existem.
 
 ## Limitações herdadas (não esquecer)
 Armazenamento de receitas em disco local e chave única (M8); alergia conferida por nome, com tabela curta de sinônimos; sem limite de tentativas por IP; IP de `X-Forwarded-For` serve só de rastro; PIN errado trava também o login web da mesma pessoa; e-mail único no sistema; sessões vencidas não são apagadas; auditoria sem âncora externa; telas ainda não existem. Lista completa em `decisions/sde`.
 
 ## Pontos de decisão com o usuário
-Após M5 (demonstração do registro com QR) e antes de M8 (casa-piloto e fornecedores).
+**Agora (após M5): demonstração do registro com QR.** Antes de M8(casa-piloto e fornecedores).

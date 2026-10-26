@@ -1,0 +1,957 @@
+/* Tablet do posto de enfermagem.
+   Quem usa: cuidadores, muitas vezes de luvas, com pressa, sob luz variável. Por isso: letra
+   grande e de alta legibilidade (Atkinson Hyperlegible), alvos de toque de no mínimo 64 px,
+   contraste AA ou melhor, e estados sempre com ícone e texto além da cor.
+   O elemento forte é a faixa de conferência; o resto fica quieto. */
+
+:root {
+  --fundo: #eef2f0;
+  --superficie: #ffffff;
+  --tinta: #14283a;
+  --tinta-suave: #4a5d6c;
+  --linha: #c9d3cf;
+  --acao: #0e5e6f;
+  --acao-escura: #0a4652;
+  --ok: #1f7a4d;
+  --ok-fundo: #e2f2e9;
+  --atencao: #8a5300;
+  --atencao-fundo: #fbf0dc;
+  --bloqueio: #b3261e;
+  --bloqueio-fundo: #fbe5e3;
+  --foco: #ffb000;
+  --raio-pequeno: 6px;
+  --raio: 12px;
+  --toque: 64px;
+  font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
+  font-size: 20px;
+  line-height: 1.45;
+  color: var(--tinta);
+  background: var(--fundo);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 4px solid var(--foco);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ------------------------------------------------------------- estrutura */
+
+.tablet {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+.tablet input,
+.tablet textarea {
+  user-select: text;
+}
+
+.barra {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.4rem 1.25rem;
+  background: var(--tinta);
+  color: #fff;
+  min-height: 56px;
+}
+
+.barra__marca {
+  font-weight: 700;
+}
+
+.barra__pessoa {
+  margin-left: auto;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.barra__acoes {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.barra__acoes:first-of-type:last-child,
+.barra__marca + .barra__acoes {
+  margin-left: auto;
+}
+
+.barra .botao--discreto {
+  color: #fff;
+  min-height: 44px;
+}
+
+.tablet__conteudo {
+  flex: 1;
+  padding: 1.25rem;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.sem-conexao {
+  background: var(--bloqueio);
+  color: #fff;
+  padding: 0.9rem 1.25rem;
+  font-size: 1.05rem;
+}
+
+.tela__titulo {
+  font-size: 1.6rem;
+  line-height: 1.2;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.tela__texto {
+  max-width: 60ch;
+  color: var(--tinta-suave);
+}
+
+/* ------------------------------------------------------------- botões e campos */
+
+.botao {
+  min-height: var(--toque);
+  padding: 0.6rem 1.4rem;
+  border-radius: var(--raio-pequeno);
+  border: 2px solid var(--acao);
+  background: var(--superficie);
+  color: var(--acao);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.botao:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.botao--principal {
+  background: var(--acao);
+  color: #fff;
+}
+
+.botao--principal:active:not(:disabled) {
+  background: var(--acao-escura);
+}
+
+.botao--largo {
+  min-width: min(100%, 26rem);
+  min-height: 76px;
+  font-size: 1.15rem;
+}
+
+.botao--discreto {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 0.5rem;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-weight: 400;
+}
+
+.botao--sos {
+  border-color: var(--tinta);
+  color: var(--tinta);
+}
+
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  align-items: center;
+}
+
+.acoes--secundarias .botao {
+  min-height: 56px;
+}
+
+.campo {
+  display: block;
+  margin: 1rem 0;
+}
+
+.campo--curto {
+  max-width: 14rem;
+}
+
+.campo__rotulo {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.campo__entrada {
+  width: 100%;
+  min-height: var(--toque);
+  padding: 0.5rem 0.9rem;
+  border: 2px solid var(--linha);
+  border-radius: var(--raio-pequeno);
+  background: var(--superficie);
+}
+
+.campo__entrada:focus {
+  border-color: var(--acao);
+}
+
+.campo__entrada--codigo {
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+}
+
+.campo__entrada--area {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.aviso {
+  padding: 0.8rem 1rem;
+  border-radius: var(--raio-pequeno);
+  border-left: 6px solid;
+  margin: 0.75rem 0;
+  max-width: 70ch;
+}
+
+.aviso--erro {
+  background: var(--bloqueio-fundo);
+  border-color: var(--bloqueio);
+}
+
+.aviso--atencao {
+  background: var(--atencao-fundo);
+  border-color: var(--atencao);
+}
+
+.selo {
+  display: inline-block;
+  margin-left: 0.6rem;
+  padding: 0.05rem 0.55rem;
+  border-radius: var(--raio-pequeno);
+  font-size: 0.8rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.selo--risco {
+  background: var(--bloqueio);
+  color: #fff;
+}
+
+.selo--grande {
+  display: block;
+  margin: 1rem 0 0;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.95rem;
+}
+
+/* ------------------------------------------------------------- faixa de conferência */
+
+.faixa {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.1rem 1.25rem;
+  margin: 0 0 1rem;
+  border-radius: var(--raio);
+  border: 3px solid;
+}
+
+.faixa__icone {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.faixa__titulo {
+  margin: 0.35rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.faixa__lista {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.faixa--ok {
+  background: var(--ok-fundo);
+  border-color: var(--ok);
+}
+
+.faixa--ok .faixa__icone {
+  background: var(--ok);
+}
+
+.faixa--bloqueio {
+  background: var(--bloqueio-fundo);
+  border-color: var(--bloqueio);
+  animation: chamar-atencao 0.4s ease-out;
+}
+
+.faixa--bloqueio .faixa__icone {
+  background: var(--bloqueio);
+}
+
+.faixa--atencao {
+  background: var(--atencao-fundo);
+  border-color: var(--atencao);
+}
+
+.faixa--atencao .faixa__icone {
+  background: var(--atencao);
+}
+
+@keyframes chamar-atencao {
+  0% {
+    transform: translateX(-10px);
+  }
+  40% {
+    transform: translateX(8px);
+  }
+  70% {
+    transform: translateX(-4px);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------- escala */
+
+.escala__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.grupo {
+  margin-top: 1.5rem;
+}
+
+.grupo__titulo {
+  font-size: 1.15rem;
+  margin: 0 0 0.6rem;
+  color: var(--tinta-suave);
+}
+
+.grupo__conta {
+  display: inline-block;
+  min-width: 1.8rem;
+  padding: 0 0.4rem;
+  border-radius: var(--raio-pequeno);
+  background: var(--linha);
+  color: var(--tinta);
+  text-align: center;
+}
+
+.grupo__vazio {
+  color: var(--tinta-suave);
+  margin: 0;
+}
+
+.doses {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.dose {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 6.5rem 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border: 2px solid var(--linha);
+  border-left-width: 10px;
+  border-radius: var(--raio-pequeno);
+  background: var(--superficie);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dose:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dose.estado--concluida:disabled {
+  opacity: 1;
+}
+
+.dose__hora {
+  font-size: 1.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.dose__adiada {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--tinta-suave);
+}
+
+.dose__corpo {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.dose__nome {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.dose__quarto {
+  margin-left: 0.6rem;
+  font-weight: 400;
+  color: var(--tinta-suave);
+}
+
+.dose__remedio {
+  color: var(--tinta);
+}
+
+.dose__alergias {
+  color: var(--bloqueio);
+  font-weight: 700;
+}
+
+.dose__registro {
+  color: var(--tinta-suave);
+  font-size: 0.9rem;
+}
+
+.estado {
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--raio-pequeno);
+}
+
+.dose.estado--sem-registro {
+  border-left-color: var(--bloqueio);
+}
+
+.estado.estado--sem-registro {
+  background: var(--bloqueio);
+  color: #fff;
+}
+
+.dose.estado--atrasada {
+  border-left-color: var(--atencao);
+}
+
+.estado.estado--atrasada {
+  background: var(--atencao-fundo);
+  color: var(--atencao);
+}
+
+.dose.estado--agora {
+  border-left-color: var(--acao);
+}
+
+.estado.estado--agora {
+  background: var(--acao);
+  color: #fff;
+}
+
+.dose.estado--a-fazer {
+  border-left-color: var(--linha);
+}
+
+.estado.estado--a-fazer {
+  color: var(--tinta-suave);
+}
+
+.dose.estado--concluida {
+  border-left-color: var(--ok);
+  background: transparent;
+}
+
+.estado.estado--concluida {
+  color: var(--ok);
+}
+
+/* ------------------------------------------------------------- registro */
+
+.registro__topo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.registro__rotulo {
+  margin: 0;
+  font-weight: 700;
+}
+
+.registro__colunas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.registro--pessoa {
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+.passos {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.passo {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.9rem 0.3rem 0.35rem;
+  border-radius: 999px;
+  color: var(--tinta-suave);
+}
+
+.passo__numero {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  font-weight: 700;
+}
+
+.passo--atual {
+  background: var(--tinta);
+  color: #fff;
+  font-weight: 700;
+}
+
+.passo--feito {
+  color: var(--ok);
+}
+
+.paciente {
+  position: sticky;
+  top: 1rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--superficie);
+  border-radius: var(--raio);
+  border: 2px solid var(--linha);
+}
+
+.paciente__nome {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.paciente__quarto {
+  margin: 0.15rem 0 0;
+  color: var(--tinta-suave);
+}
+
+.paciente__alergias {
+  margin: 0.9rem 0;
+  padding: 0.7rem 0.9rem;
+  background: var(--bloqueio-fundo);
+  border: 2px solid var(--bloqueio);
+  border-radius: var(--raio-pequeno);
+}
+
+.paciente__alergias-titulo {
+  margin: 0;
+  font-weight: 700;
+  color: var(--bloqueio);
+}
+
+.paciente__alergias ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+  font-weight: 700;
+}
+
+.paciente__gravidade {
+  font-weight: 400;
+}
+
+.paciente__sem-alergia {
+  color: var(--tinta-suave);
+  margin: 0.9rem 0;
+}
+
+.paciente__dose {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.8rem;
+}
+
+.paciente__dose dt {
+  color: var(--tinta-suave);
+}
+
+.paciente__dose dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.paciente__principio {
+  display: block;
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+}
+
+/* ------------------------------------------------------------- leitor de QR */
+
+.leitor {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+}
+
+.leitor__visor {
+  position: relative;
+  width: min(100%, 36rem);
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border-radius: var(--raio);
+  overflow: hidden;
+}
+
+.leitor__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.leitor__mira {
+  position: absolute;
+  inset: 18% 28%;
+  border: 4px solid rgba(255, 255, 255, 0.9);
+  border-radius: var(--raio);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.35);
+}
+
+.leitor__instrucao {
+  margin: 0;
+  font-weight: 700;
+}
+
+.leitor__aviso {
+  max-width: 60ch;
+}
+
+.leitor--digitar {
+  max-width: 36rem;
+}
+
+/* ------------------------------------------------------------- motivos, lotes, SOS */
+
+.motivo {
+  border: 0;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.motivo__titulo {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  padding: 0;
+}
+
+.motivo__opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.opcao {
+  min-height: 56px;
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--raio-pequeno);
+  border: 2px solid var(--linha);
+  background: var(--superficie);
+  cursor: pointer;
+}
+
+.opcao--marcada {
+  border-color: var(--acao);
+  background: var(--acao);
+  color: #fff;
+  font-weight: 700;
+}
+
+.lotes,
+.sos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.lote,
+.sos__opcao {
+  width: 100%;
+  display: grid;
+  gap: 0.15rem;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border: 2px solid var(--linha);
+  border-radius: var(--raio-pequeno);
+  background: var(--superficie);
+  cursor: pointer;
+}
+
+.lote--marcado {
+  border-color: var(--acao);
+  box-shadow: inset 0 0 0 2px var(--acao);
+}
+
+.lote:disabled,
+.sos__opcao:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lote__numero,
+.sos__nome {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.sos__limite {
+  color: var(--tinta-suave);
+  font-size: 0.9rem;
+}
+
+.sos__bloqueio {
+  color: var(--bloqueio);
+  font-weight: 700;
+}
+
+.tardio__lote {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------------- pessoas e PIN */
+
+.pessoas__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.75rem;
+}
+
+.pessoa {
+  width: 100%;
+  min-height: 84px;
+  display: grid;
+  align-content: center;
+  text-align: left;
+  padding: 0.75rem 1.1rem;
+  border: 2px solid var(--linha);
+  border-radius: var(--raio-pequeno);
+  background: var(--superficie);
+  cursor: pointer;
+}
+
+.pessoas__lista--grande .pessoa {
+  min-height: 96px;
+}
+
+.pessoa__nome {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.pessoa__perfil {
+  color: var(--tinta-suave);
+  font-size: 0.9rem;
+}
+
+.pin {
+  max-width: 26rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.pin__titulo {
+  font-size: 1.45rem;
+  margin: 0.5rem 0;
+}
+
+.pin__explicacao {
+  color: var(--tinta-suave);
+  margin: 0 0 0.75rem;
+}
+
+.pin__pontos {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+  margin: 1rem 0;
+}
+
+.pin__ponto {
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  border: 3px solid var(--tinta);
+}
+
+.pin__ponto--cheio {
+  background: var(--tinta);
+}
+
+.pin__erro {
+  color: var(--bloqueio);
+  font-weight: 700;
+}
+
+.pin__teclas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.pin__tecla {
+  min-height: 88px;
+  font-size: 2rem;
+  font-weight: 700;
+  border: 2px solid var(--linha);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  cursor: pointer;
+}
+
+.pin__tecla:active {
+  background: var(--linha);
+}
+
+.pin__tecla--ok {
+  background: var(--acao);
+  border-color: var(--acao);
+  color: #fff;
+}
+
+.pin__tecla--ok:disabled {
+  opacity: 0.4;
+}
+
+.pin .acoes {
+  justify-content: center;
+}
+
+/* ------------------------------------------------------------- concluído e ativação */
+
+.concluido {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  padding: 3rem 1rem;
+}
+
+.concluido__icone {
+  display: grid;
+  place-items: center;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 50%;
+  background: var(--ok);
+  color: #fff;
+  font-size: 4rem;
+  font-weight: 700;
+}
+
+.concluido__titulo {
+  margin: 0.5rem 0 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.concluido__texto {
+  margin: 0 0 1.5rem;
+  font-size: 1.2rem;
+}
+
+.ativacao {
+  max-width: 34rem;
+}
+
+/* ------------------------------------------------------------- telas menores (retrato) */
+
+@media (max-width: 900px) {
+  .registro__colunas {
+    grid-template-columns: 1fr;
+  }
+
+  .paciente {
+    position: static;
+    order: -1;
+  }
+
+  .dose {
+    grid-template-columns: 5rem 1fr;
+  }
+
+  .dose .estado {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

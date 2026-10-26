@@ -118,3 +118,9 @@ Arquivos `db/migracoes/NNNN_nome.sql`, aplicados em ordem, cada um em uma transa
 - Saldo não negativo garantido por gatilho com advisory lock por lote; testado sob concorrência.
 - Previsão por simulação FEFO; reposição = demanda que o estoque utilizável não cobre em 30 dias.
 - Pendências para M5: FK `administracao_id`, consumo respeitando validade, conversão de unidade, média SOS real, localizar lote por QR.
+
+## M5 — Administração (concluído em 2026-10-26)
+- Migração `0008_administracao.sql`: `administracao` (chave de idempotência, uma final por dose em índice parcial, imutável, gatilho de coerência), `excecao_conferencia`, `segunda_validacao` (gatilho: outra pessoa), FK do consumo de estoque, `prescricao.alergias_confirmadas`.
+- Decisões: alergia confirmada conscientemente ao prescrever avisa e não bloqueia; alergia nova bloqueia sempre, sem exceção. "Não administrada" dispensa a pulseira (paciente fora da casa); recusa e adiamento exigem. "Adiada" não é final e só vai até o limite maior contado do horário original. SOS só registra administração (com o sintoma), com limite em janela móvel de 24 h por grupo de versões. Registro tardio: reautenticação, motivo, até 7 dias, validade conferida na data da dose, prescrição valendo no momento da dose. Unidade do lote diferente da prescrita bloqueia (sem conversão).
+- Janela de tolerância configurável pelo gestor (`/admin/configuracoes/janela`), com reautenticação e auditoria.
+- Telas do tablet em `/tablet`; `npm run demo` e `npm run e2e:tablet`.

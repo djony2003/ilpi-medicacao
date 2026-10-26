@@ -20,9 +20,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verificar": "npm run typecheck && npm run lint && npm run format:check && npm test",
-    "agendador": "tsx --env-file-if-exists=.env --tsconfig tsconfig.json scripts/agendador.ts"
+    "agendador": "tsx --env-file-if-exists=.env --tsconfig tsconfig.json scripts/agendador.ts",
+    "demo": "tsx --env-file-if-exists=.env --tsconfig tsconfig.json scripts/demo.ts",
+    "e2e:tablet": "node --env-file-if-exists=.env scripts/e2e-tablet.mjs"
   },
   "dependencies": {
+    "@fontsource/atkinson-hyperlegible": "^5.3.0",
     "@node-rs/argon2": "^2.2.2",
     "next": "^16.4.3",
     "pdf-lib": "^1.17.1",

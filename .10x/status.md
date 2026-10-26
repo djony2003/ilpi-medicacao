@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de medicação para casas de idosos (ILPI)
 **Feature atual:** medicacao-ilpi (V1)
-**Fase atual:** Fase 4 — Implementação. M4 concluído; próximo: M5 (administração com QR)
+**Fase atual:** Fase 4 — Implementação. M5 concluído; **ponto de decisão com o usuário (demonstração do registro com QR)** antes de M6
 **Atualizado em:** 2026-10-26
 
 ## Fases
@@ -12,7 +12,7 @@
 | 1. Estratégia | Concluída |
 | 2. Design | Concluída. ADR-001 aceito |
 | 3. Planejamento | Concluída. 62 tarefas em 9 marcos |
-| 4. Implementação | Em andamento. M0 a M4 concluídos (T01 a T34). Próxima tarefa: T35 |
+| 4. Implementação | Em andamento. M0 a M5 concluídos (T01 a T46). Próxima tarefa: T47 (após a demonstração) |
 | 5. Verificação | Não iniciada |
 | 6. Entrega | Não iniciada |
 
@@ -26,10 +26,13 @@ Plano completo: `.10x/decisions/engineering-manager/medicacao-ilpi.md`
 | M2 Idosos e prescrições | T17 a T23 | **Concluído** |
 | M3 Escala de doses | T24 a T28 | **Concluído** (usuário optou por seguir sem validação prévia) |
 | M4 Estoque | T29 a T34 | **Concluído** |
-| M5 Administração | T35 a T46 | Pendente |
+| M5 Administração | T35 a T46 | **Concluído** (demonstração com o usuário) |
 | M6 Alertas | T47 a T52 | Pendente |
 | M7 Gestão e auditoria | T53 a T56 | Pendente |
 | M8 Verificação e prontidão | T57 a T62 | Pendente |
+
+## Qualidade em M5
+760 testes passando (41 arquivos, PostgreSQL real), tipos, lint, formatação e build limpos, `npm audit` sem vulnerabilidades. Treze testes de mutação detectados (alergia, paciente errado, lote de outro paciente, lote vencido, motivo fora da janela, idempotência, segunda validação, quem libera, validador igual, limite SOS, reautenticação do tardio, validade na data da dose, perfil na confirmação). Concorrência testada: seis leituras simultâneas da mesma dose geram um registro; duas doses disputando a última unidade, uma baixa. Telas do tablet testadas de ponta a ponta no Chromium com câmera simulada (`npm run e2e:tablet`, 16 telas); o teste revelou e corrigiu um laço de releitura do QR recusado. **Falta testar num tablet real** (câmera, som, vibração, quiosque).
 
 ## Qualidade em M4
 690 testes passando (37 arquivos, PostgreSQL real), tipos, lint, formatação e build limpos, `npm audit` sem vulnerabilidades. Cinco testes de mutação detectados (ordem FEFO e lote vencido na previsão, reautenticação na saída e no fechamento do inventário, gatilho de saldo não negativo). PDFs da etiqueta e da reposição renderizados e conferidos; o QR da etiqueta é lido de volta pela API. Malha de vazamento estendida com lote e inventário da casa B.
