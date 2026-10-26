@@ -145,6 +145,8 @@ async function inserirVersao(
     substituiId: string | null;
     conteudo: ConteudoDePrescricao;
     justificativa: string | null;
+    /** Relógio da aplicação (injetável): é o marco a partir do qual a versão gera doses. */
+    criadaEm: Date;
   },
 ): Promise<{ id: string; grupoId: string }> {
   const k = v.conteudo;
@@ -152,10 +154,10 @@ async function inserirVersao(
     `INSERT INTO prescricao
        (casa_id, idoso_id, medicamento_id, grupo_id, versao, substitui_id, tipo, dose, unidade, via,
         instrucoes, inicio, fim, alto_risco, sos_indicacao, sos_limite_diario, sos_intervalo_min,
-        prescritor, justificativa, criado_por)
+        prescritor, justificativa, criado_por, criado_em)
      VALUES (app_casa_id(), $1, $2, coalesce($3::uuid, gen_random_uuid()), $4, $5, $6, $7, $8, $9,
              nullif(btrim($10), ''), $11, $12, $13, $14, $15, $16, nullif(btrim($17), ''),
-             nullif(btrim($18), ''), $19)
+             nullif(btrim($18), ''), $19, $20)
      RETURNING id, grupo_id`,
     [
       v.idosoId,
@@ -177,6 +179,7 @@ async function inserirVersao(
       k.prescritor ?? "",
       v.justificativa ?? "",
       ator.usuarioId,
+      v.criadaEm,
     ],
   );
   const criada = r.rows[0];
@@ -263,6 +266,7 @@ export async function prescrever(
       substituiId: null,
       conteudo: entrada,
       justificativa: conflitos.length > 0 ? justificativaAlergia : null,
+      criadaEm: agora,
     });
     await registrarAuditoria(c, {
       acao: "prescricao.criada",
@@ -386,6 +390,7 @@ export async function novaVersao(
         conflitos.length > 0
           ? `${justificativa} | Alergia confirmada: ${justificativaAlergia}`
           : justificativa,
+      criadaEm: agora,
     });
     await registrarAuditoria(c, {
       acao: "prescricao.nova_versao",
@@ -593,4 +598,48 @@ export async function obterPrescricao(
     if (!prescricao) return NAO_ENCONTRADO();
     return { ok: true, prescricao, historico } as const;
   });
+}
+
+// ------------------------------------------------------------------------------------------
+// Leitura para a escala (consumida pelo módulo de administração)
+
+export type PrescricaoRegularAtiva = {
+  id: string;
+  idosoId: string;
+  inicio: string;
+  fim: string | null;
+  criadaEm: Date;
+  horarios: Horario[];
+};
+
+/**
+ * Prescrições regulares ativas de idosos ativos da casa do contexto. Sem checagem de perfil: é
+ * leitura interna, chamada pelo gerador de doses (rotina automática ou depois de prescrever).
+ */
+export async function prescricoesRegularesAtivas(c: PoolClient): Promise<PrescricaoRegularAtiva[]> {
+  const r = await c.query<{
+    id: string;
+    idoso_id: string;
+    inicio: string;
+    fim: string | null;
+    criado_em: Date;
+  }>(
+    `SELECT p.id, p.idoso_id, p.inicio::text AS inicio, p.fim::text AS fim, p.criado_em
+       FROM prescricao p
+       JOIN idoso i ON i.id = p.idoso_id AND i.casa_id = p.casa_id
+      WHERE p.status = 'ativa' AND p.tipo = 'regular' AND i.status = 'ativo'
+      ORDER BY p.id`,
+  );
+  const horarios = await horariosDe(
+    c,
+    r.rows.map((l) => l.id),
+  );
+  return r.rows.map((l) => ({
+    id: l.id,
+    idosoId: l.idoso_id,
+    inicio: l.inicio,
+    fim: l.fim,
+    criadaEm: l.criado_em,
+    horarios: horarios.get(l.id) ?? [],
+  }));
 }

@@ -36,8 +36,10 @@ jobs:
       ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       ILPI_APP_PASSWORD: ci_app_descartavel
       ILPI_MIGRADOR_PASSWORD: ci_migrador_descartavel
+      ILPI_AGENDADOR_PASSWORD: ci_agendador_descartavel
       MIGRATOR_DATABASE_URL: postgres://ilpi_migrador:ci_migrador_descartavel@localhost:5432/ilpi_test
       DATABASE_URL: postgres://ilpi_app:ci_app_descartavel@localhost:5432/ilpi_test
+      AGENDADOR_DATABASE_URL: postgres://ilpi_agendador:ci_agendador_descartavel@localhost:5432/ilpi_test
       CHAVE_CAMPOS: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 
     steps:

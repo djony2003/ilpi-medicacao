@@ -1,5 +1,19 @@
 # DBA — medicacao-ilpi
 
+## Estado em M3 (2026-10-26)
+
+### Migração 0006_escala
+- **`dose_agendada`:** `casa_id`, `prescricao_id` e `idoso_id` com chaves estrangeiras compostas com `casa_id`; `data_local` (date) e `hora_local` (time) no fuso da casa; `prevista_em` (timestamptz) calculado na geração; `cancelada_em` e `motivo_cancelamento` (enum) com CHECK de coerência. RLS habilitado e forçado.
+- **Índices:** único parcial `dose_horario_unico (prescricao_id, data_local, hora_local) WHERE cancelada_em IS NULL` (idempotência e corrida); `dose_casa_prevista (casa_id, prevista_em)` e `dose_idoso_prevista` parciais nas não canceladas (escala do tablet).
+- **Gatilhos:** `dose_agendada_so_cancela` (só os campos de cancelamento mudam, uma vez); `prescricao_cancela_doses` (ativa → encerrada/substituída cancela as doses depois de `encerrada_em`); `idoso_afastado_cancela_doses` (ativo → outro status cancela as doses depois de `status_alterado_em`). A referência é o horário gravado pela aplicação, não o `now()` do banco.
+- **`execucao_agendador`:** batimento por (casa, tarefa), com última execução, duração, resultado em JSON e último erro. RLS pela casa.
+- **Papel novo `ilpi_agendador`:** herda `ilpi_app` e ganha uma única ampliação, a política `agendador_lista_casas` (SELECT em `casa` onde `ativa`). Sem contexto de casa não lê dose, prescrição, idoso, usuário nem batimento (testado), e continua sem DELETE.
+- `prescricao.criado_em` passou a ser gravado pela aplicação (relógio injetável); o default do banco continua como rede de segurança.
+
+### Pendências
+- Purga de doses antigas (retenção) e partição por data só se o volume pedir; hoje o volume é de dezenas de milhares de linhas por casa por ano.
+- Painel/alerta do batimento do agendador em M6.
+
 ## Estado em M2 (2026-10-26)
 
 ### Tabelas (migrações 0004 e 0005), todas com RLS habilitado e forçado

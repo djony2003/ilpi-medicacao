@@ -1,5 +1,35 @@
 # SDE — medicacao-ilpi
 
+## M3 Escala de doses — concluído em 2026-10-26 (T24 a T28)
+
+### O que foi construído
+- **Domínio puro** (`src/modules/administracao/dominio`): `instanteLocal` (hora de parede + fuso → instante), `dosesDoPeriodo` (vigência, dias da semana, horários), `estadoDaDose` e `classificarRegistro` (janela de tolerância e limite maior, usados também pelo registro em M5), `compararParaEscala`.
+- **Geração idempotente** (`gerarDosesDaCasa`): doses de ontem a 7 dias à frente para prescrições regulares ativas de idosos ativos; `INSERT ... ON CONFLICT DO NOTHING` sobre o índice único (prescrição, dia, hora) das doses não canceladas; ordem fixa das linhas para execuções paralelas não travarem umas às outras. Batimento por casa em `execucao_agendador`.
+- **Agendador** (`npm run agendador`, `scripts/agendador.ts` + `src/agendador/laco.ts`): laço a cada 15 min (configurável de 1 a 60), falha de uma casa registrada sem parar as outras, parada limpa por SIGINT e SIGTERM, log só com tipo do erro. Sem trava entre cópias: duas rodando juntas são inofensivas (testado).
+- **Escala do plantão** (`escalaDoPlantao`, `GET /escala`): atrasadas no topo, depois a janela atual e o que vem; alergias com as graves primeiro; padrão de 12 h atrás a 8 h à frente, teto de 48 h; até 3000 doses (indica `truncada`).
+- **Folha de contingência** (`POST /escala/folha-de-contingencia`): PDF A4 paisagem, ordem de ronda (horário, quarto numérico, nome), colunas de hora real, rubrica e 2ª assinatura (alto risco), nome longo em duas linhas, alergias graves em vermelho, paginação e aviso se cortada. Cada emissão é auditada (`escala.folha_emitida`, só período e quantidade). Conferida visualmente e por `pdftotext`.
+- **Geração imediata:** depois de prescrever, nova versão e alta do idoso (volta a "ativo"), a rota gera as doses na hora; falha ali só vai para o log (o agendador completa), nunca vira erro para quem prescreveu.
+
+### Regras decididas (e testadas)
+| Regra | Motivo |
+|---|---|
+| Só nasce dose com horário igual ou posterior à criação da versão da prescrição | Sem "dose fantasma": nova versão às 12h não ganha o horário das 8h que a antiga já cumpriu. Por isso `prescricao.criado_em` agora vem do relógio da aplicação, não do banco |
+| Horário que não existe (salto do horário de verão) vira o instante da virada; horário repetido vale a primeira ocorrência | Ordem monotônica entre 02:30 e 03:00; ninguém recebe dose duas vezes |
+| Só prescrição `regular` gera dose; SOS é sob demanda | Defesa testada mesmo com horário inserido direto no banco |
+| Dose cancelada cujo horário já passou não renasce; a futura renasce | Idoso internado das 10h às 14h não "deve" a dose das 12h, mas volta a ter as de depois |
+| Cancelamento por gatilho do banco, com horário de referência gravado pela aplicação | Vale para qualquer caminho de escrita e deixa o relógio injetável nos testes |
+| Escala não mostra dose cancelada nem de idoso fora de "ativo" | Dose passada de quem foi internado não aparece como "sem registro" |
+
+### Verificação
+530 testes (30 arquivos, PostgreSQL real), tipos, lint, formatação, build com variáveis ausentes e `npm audit` limpos. Dezessete testes de mutação, todos detectados (guarda de ressurreição, regra da criação, dia anterior, filtros SOS e idoso ativo, gatilhos de prescrição e idoso, imutabilidade e cancelamento único, teto de 48 h, ordem numérica de quarto, auditoria, ordem de alergias, geração imediata em nova versão e alta, falha silenciosa). Um mutante equivalente (`ON CONFLICT DO NOTHING` sem alvo) foi descartado. A malha de vazamento ganhou escala e folha: a casa B tem doses reais e nada dela aparece em JSON nem no texto do PDF da casa A.
+
+### Dívida técnica e limitações conhecidas
+- Registro de administração (M5) ainda não existe: a escala mostra nenhuma dose como `concluida`; o ponto de ligação está comentado em `dados/escala.ts`.
+- A geração roda por casa inteira a cada prescrição (uma consulta); aceitável para dezenas de idosos, rever se houver casas grandes.
+- Agendador sem painel: o batimento está em `execucao_agendador`; o alerta de "agendador parado" entra com os alertas (M6).
+- `ilpi_agendador` exige `ILPI_AGENDADOR_PASSWORD` em `db:setup`; em produção precisa de segredo próprio e processo próprio.
+- Telas ainda não existem (escala do tablet é API).
+
 ## M2 Idosos e prescrições — concluído em 2026-10-26 (T17 a T23)
 
 ### O que foi construído

@@ -1,3 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { comContexto } from "@/compartilhado/banco/transacao";
@@ -16,7 +20,8 @@ import { criarApi, listarRotas, type DescricaoDeRota } from "@/web/api";
 import { criarPoolApp, criarPoolMigrador } from "../ajudantes/banco";
 import { criarCasa, criarUsuario } from "../ajudantes/dados";
 import { Navegador, entrarNaApi } from "../ajudantes/navegador";
-import { criarAtorWeb } from "../ajudantes/sessoes";
+import { criarAtorWeb, type AtorWeb } from "../ajudantes/sessoes";
+import { escalaDoPlantao, gerarDosesDaCasa } from "@/modules/administracao";
 import { adicionarAlergia, adicionarContato, cadastrarIdoso, obterIdoso } from "@/modules/idosos";
 import { anexarReceita, cadastrarMedicamento, prescrever } from "@/modules/prescricoes";
 import { ArmazenamentoEmMemoria } from "@/compartilhado/armazenamento";
@@ -55,6 +60,7 @@ let idsDeB: {
 };
 let idosoDeA: string;
 let gestorBToken: string;
+let gestorBAtor: AtorWeb;
 
 const rotas = listarRotas();
 const chave = (r: DescricaoDeRota) => `${r.metodo} ${r.caminho}`;
@@ -154,6 +160,7 @@ beforeAll(async () => {
   const ativacaoB = await ativarDispositivo(servico(), { codigo: dispositivoB.codigo });
   if (!ativacaoB.ok) throw new Error("ativação da casa B deveria funcionar");
   gestorBToken = gestorB.token;
+  gestorBAtor = gestorB;
 
   const idosoB = await cadastrarIdoso(servico(), gestorB, {
     nome: "CANARIO-B-NOME-IDOSO",
@@ -198,6 +205,8 @@ beforeAll(async () => {
     throw new Error(
       `prescrição da casa B deveria entrar: ${prescB.motivo} ${JSON.stringify("problemas" in prescB ? prescB.problemas : "")}`,
     );
+  // A escala da casa B precisa ter doses de verdade, senão "A não vê B" seria uma verdade vazia.
+  await gerarDosesDaCasa(servico(), casaB);
   const recB = await anexarReceita(servico(), gestorB, {
     prescricaoId: prescB.prescricaoId,
     bytes: Buffer.from("%PDF-1.7\nCANARIO-B-RECEITA"),
@@ -265,6 +274,24 @@ beforeAll(async () => {
   });
   if (idosoA.status !== 201) throw new Error("cadastro do idoso da casa A deveria funcionar");
   idosoDeA = String(idosoA.corpo.idosoId);
+  const medA = await gestorA.nav.post("/medicamentos", {
+    nomeComercial: "Remedio da Casa A",
+    principioAtivo: "SubstanciaDaCasaA",
+    forma: "comprimido",
+  });
+  if (medA.status !== 201) throw new Error("medicamento da casa A deveria entrar");
+  const hoje = new Date().toISOString().slice(0, 10);
+  const prescA = await gestorA.nav.post(`/idosos/${idosoDeA}/prescricoes`, {
+    medicamentoId: String(medA.corpo.medicamentoId),
+    tipo: "regular",
+    dose: 1,
+    unidade: "comprimido",
+    via: "oral",
+    inicio: hoje,
+    altoRisco: false,
+    horarios: [{ hora: "06:00" }, { hora: "12:00" }, { hora: "18:00" }, { hora: "23:30" }],
+  });
+  if (prescA.status !== 201) throw new Error("prescrição da casa A deveria entrar");
 });
 
 afterAll(async () => {
@@ -448,6 +475,39 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
     const aparelhos = JSON.stringify((await gestorA.nav.get("/admin/dispositivos")).corpo);
     expect(aparelhos).toContain("Tablet da Casa A");
     expect(JSON.stringify((await gestorA.nav.get("/idosos")).corpo)).toContain(idosoDeA);
+  });
+
+  it("escala e folha de contingência da casa A só trazem doses da casa A (e a da B não está vazia)", async () => {
+    const agora = Date.now();
+    const de = new Date(agora - 3_600_000).toISOString();
+    const ate = new Date(agora + 47 * 3_600_000).toISOString();
+
+    // A casa B tem doses no período: o que a torna "invisível" para A é o isolamento, não o vazio.
+    const daB = await escalaDoPlantao(servico(), gestorBAtor, {
+      de: new Date(de),
+      ate: new Date(ate),
+    });
+    if (!daB.ok) throw new Error("escala da casa B");
+    expect(JSON.stringify(daB.escala.doses)).toContain("CANARIO-B-NOME-IDOSO");
+
+    for (const ator of [gestorA, enfermeiroA, cuidadorTabletA]) {
+      const resp = await ator.nav.get(
+        `/escala?de=${encodeURIComponent(de)}&ate=${encodeURIComponent(ate)}`,
+      );
+      expect(resp.status).toBe(200);
+      const texto = JSON.stringify(resp.corpo);
+      expect(texto).toContain("Idosa da Casa A");
+      for (const c of canarios) expect(texto, `escala vazou ${c}`).not.toContain(c);
+    }
+
+    const folha = await gestorA.nav.post("/escala/folha-de-contingencia", { de, ate });
+    expect(folha.status).toBe(200);
+    const pasta = mkdtempSync(join(tmpdir(), "vazamento-"));
+    const arquivo = join(pasta, "folha.pdf");
+    writeFileSync(arquivo, folha.bytes);
+    const textoDoPdf = execFileSync("pdftotext", ["-layout", arquivo, "-"], { encoding: "utf8" });
+    expect(textoDoPdf).toContain("Idosa da Casa A");
+    for (const c of canarios) expect(textoDoPdf, `folha vazou ${c}`).not.toContain(c);
   });
 
   it("a leitura de pulseira da casa A não encontra a pulseira da casa B (nem pelo QR)", async () => {

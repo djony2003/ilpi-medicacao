@@ -16,6 +16,11 @@ export function criarPoolMigrador(max = 2): pg.Pool {
   return new pg.Pool({ connectionString: exigir("MIGRATOR_DATABASE_URL"), max });
 }
 
+/** Pool com o papel do agendador (herda a aplicação; também lista as casas). */
+export function criarPoolAgendador(max = 2): pg.Pool {
+  return new pg.Pool({ connectionString: exigir("AGENDADOR_DATABASE_URL"), max });
+}
+
 /**
  * Conexão de superusuário ao banco de teste, usada só para simular adulteração direta no banco
  * (algo que nenhum papel da aplicação consegue fazer). Devolve null se não houver credencial.

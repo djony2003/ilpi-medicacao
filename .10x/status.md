@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de medicação para casas de idosos (ILPI)
 **Feature atual:** medicacao-ilpi (V1)
-**Fase atual:** Fase 4 — Implementação. M2 concluído; próximo: M3 (e ponto de decisão com o usuário)
+**Fase atual:** Fase 4 — Implementação. M3 concluído; **ponto de decisão com o usuário (validação de mercado)** antes de M4
 **Atualizado em:** 2026-10-26
 
 ## Fases
@@ -12,7 +12,7 @@
 | 1. Estratégia | Concluída |
 | 2. Design | Concluída. ADR-001 aceito |
 | 3. Planejamento | Concluída. 62 tarefas em 9 marcos |
-| 4. Implementação | Em andamento. M0, M1 e M2 concluídos (T01 a T23). Próxima tarefa: T24 |
+| 4. Implementação | Em andamento. M0 a M3 concluídos (T01 a T28). Próxima tarefa: T29 (após a decisão do usuário) |
 | 5. Verificação | Não iniciada |
 | 6. Entrega | Não iniciada |
 
@@ -24,12 +24,15 @@ Plano completo: `.10x/decisions/engineering-manager/medicacao-ilpi.md`
 | M0 Fundação | T01 a T06 | **Concluído** |
 | M1 Identidade e auditoria | T07 a T16 | **Concluído** |
 | M2 Idosos e prescrições | T17 a T23 | **Concluído** |
-| M3 Escala de doses | T24 a T28 | Pendente (próximo; decisão com o usuário ao final) |
+| M3 Escala de doses | T24 a T28 | **Concluído** (decisão com o usuário: validação de mercado) |
 | M4 Estoque | T29 a T34 | Pendente |
 | M5 Administração | T35 a T46 | Pendente |
 | M6 Alertas | T47 a T52 | Pendente |
 | M7 Gestão e auditoria | T53 a T56 | Pendente |
 | M8 Verificação e prontidão | T57 a T62 | Pendente |
+
+## Qualidade em M3
+530 testes passando (30 arquivos, PostgreSQL real), tipos, lint, formatação e build limpos, `npm audit` sem vulnerabilidades. Dezessete testes de mutação detectados (geração, gatilhos, escala, folha, geração imediata). A folha de contingência foi renderizada e conferida visualmente; o agendador foi executado como processo de verdade (rodada, batimento e parada limpa).
 
 ## Qualidade em M2
 471 testes passando (25 arquivos, PostgreSQL real), tipos, lint, formatação e build de produção limpos, `npm audit` sem vulnerabilidades. Catorze testes de mutação (alergia, versionamento, cifra e tipo da receita, fuso da casa, gatilhos do banco, permissão declarada na rota) confirmaram que os testes detectam o defeito; um deles revelou lacuna na malha de vazamento, já corrigida. O QR do PDF da pulseira é lido de volta a partir do PDF renderizado.
@@ -48,5 +51,5 @@ Nenhum.
 - Provedor de armazenamento de receitas e serviço de chaves (hoje disco local e chave única); decidir com o fornecedor de hospedagem antes de M8.
 - Consulta regulatória (Anvisa, COREN, vigilância sanitária).
 - Revisão jurídica (contratos, privacidade, retenção da auditoria).
-- Validação de mercado com 2 ou 3 casas (sugerida após M3).
+- **Validação de mercado com 2 ou 3 casas: agora** (decisão do usuário após M3). Já existe o que mostrar: escala do plantão (API), folha de contingência em PDF, pulseira com QR; faltam as telas.
 - Escolha do fornecedor de hospedagem e de e-mail (antes de M8).

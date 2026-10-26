@@ -3,14 +3,17 @@
 // Papéis:
 //   ilpi_migrador  dono dos objetos; roda as migrações.
 //   ilpi_app       usado pela aplicação; sem superusuário, sem BYPASSRLS, sem criar objetos.
+//   ilpi_agendador usado só pelo processo agendador; herda ilpi_app e, além disso, pode LISTAR as
+//                  casas (política própria na migração 0006). Não ignora RLS em nenhuma tabela.
 //
 // Variáveis: ADMIN_DATABASE_URL (superusuário), MIGRATOR_DATABASE_URL (define o nome do banco),
-// ILPI_APP_PASSWORD, ILPI_MIGRADOR_PASSWORD.
+// ILPI_APP_PASSWORD, ILPI_MIGRADOR_PASSWORD, ILPI_AGENDADOR_PASSWORD.
 
 import pg from "pg";
 
 const PAPEL_APP = "ilpi_app";
 const PAPEL_MIGRADOR = "ilpi_migrador";
+const PAPEL_AGENDADOR = "ilpi_agendador";
 
 function exigir(nome) {
   const valor = process.env[nome];
@@ -25,6 +28,7 @@ const adminUrl = exigir("ADMIN_DATABASE_URL");
 const migradorUrl = exigir("MIGRATOR_DATABASE_URL");
 const senhaApp = exigir("ILPI_APP_PASSWORD");
 const senhaMigrador = exigir("ILPI_MIGRADOR_PASSWORD");
+const senhaAgendador = exigir("ILPI_AGENDADOR_PASSWORD");
 
 const nomeBanco = decodeURIComponent(new URL(migradorUrl).pathname.slice(1));
 if (!/^[a-z][a-z0-9_]*$/.test(nomeBanco)) {
@@ -46,6 +50,9 @@ await admin.connect();
 try {
   await garantirPapel(admin, PAPEL_MIGRADOR, senhaMigrador);
   await garantirPapel(admin, PAPEL_APP, senhaApp);
+  await garantirPapel(admin, PAPEL_AGENDADOR, senhaAgendador);
+  // O agendador usa os mesmos privilégios de tabela da aplicação (e as mesmas políticas de RLS).
+  await admin.query(`GRANT ${PAPEL_APP} TO ${PAPEL_AGENDADOR}`);
 
   const banco = await admin.query("SELECT 1 FROM pg_database WHERE datname = $1", [nomeBanco]);
   if (banco.rowCount === 0) {
@@ -55,7 +62,9 @@ try {
   }
   const bancoId = admin.escapeIdentifier(nomeBanco);
   await admin.query(`REVOKE ALL ON DATABASE ${bancoId} FROM PUBLIC`);
-  await admin.query(`GRANT CONNECT ON DATABASE ${bancoId} TO ${PAPEL_APP}, ${PAPEL_MIGRADOR}`);
+  await admin.query(
+    `GRANT CONNECT ON DATABASE ${bancoId} TO ${PAPEL_APP}, ${PAPEL_MIGRADOR}, ${PAPEL_AGENDADOR}`,
+  );
 } finally {
   await admin.end();
 }
@@ -73,4 +82,6 @@ try {
   await noBanco.end();
 }
 
-console.log(`Banco "${nomeBanco}" pronto (papéis ${PAPEL_MIGRADOR} e ${PAPEL_APP}).`);
+console.log(
+  `Banco "${nomeBanco}" pronto (papéis ${PAPEL_MIGRADOR}, ${PAPEL_APP} e ${PAPEL_AGENDADOR}).`,
+);

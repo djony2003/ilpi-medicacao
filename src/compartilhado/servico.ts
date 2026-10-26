@@ -11,6 +11,6 @@ export type Servico = {
   armazenamento?: Armazenamento;
 };
 
-export function relogio(servico: Servico): Date {
+export function relogio(servico: Pick<Servico, "agora">): Date {
   return (servico.agora ?? (() => new Date()))();
 }

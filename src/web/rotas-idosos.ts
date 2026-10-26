@@ -19,6 +19,7 @@ import {
   type StatusIdoso,
 } from "@/modules/idosos";
 import { ErroHttp, json, lerCorpo } from "./http";
+import { gerarEscalaAposMudanca } from "./rotas-escala";
 import { respostaDeFalha, sessaoDe, texto, uuidDaRota, type Rota } from "./rota";
 
 // Rotas do cadastro de idosos. Todas exigem sessão completa; a permissão é conferida pelo
@@ -134,7 +135,10 @@ export const ROTAS_IDOSOS: Rota[] = [
         status,
         ip: ctx.ip,
       });
-      return r.ok ? json({ ok: true }) : respostaDeFalha(r);
+      if (!r.ok) return respostaDeFalha(r);
+      // Quem volta a ficar "ativo" (alta do hospital) precisa das doses de volta na escala.
+      if (status === "ativo") await gerarEscalaAposMudanca(ctx);
+      return json({ ok: true });
     },
   },
   {

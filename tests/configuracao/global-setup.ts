@@ -43,6 +43,13 @@ export default async function setup() {
     process.env[nome] = trocarBanco(valor, NOME_BANCO_TESTE);
   }
 
+  // Papel do agendador: se o .env antigo não o define, usa um valor só de teste.
+  process.env.ILPI_AGENDADOR_PASSWORD ??= "agendador_dev_local";
+  const destinoApp = new URL(process.env.DATABASE_URL ?? "");
+  destinoApp.username = "ilpi_agendador";
+  destinoApp.password = process.env.ILPI_AGENDADOR_PASSWORD;
+  process.env.AGENDADOR_DATABASE_URL = destinoApp.toString();
+
   // Chave fixa, só para testes: o valor nunca é usado fora desta suíte.
   process.env.CHAVE_CAMPOS ??= Buffer.alloc(32, 9).toString("base64");
 

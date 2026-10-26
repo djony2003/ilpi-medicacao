@@ -15,9 +15,11 @@ export {
   obterPrescricao,
   prescrever,
   prescricoesDoIdoso,
+  prescricoesRegularesAtivas,
   type FalhaDeAlergia,
   type NovaPrescricao,
   type PrescricaoDetalhada,
+  type PrescricaoRegularAtiva,
 } from "./dados/prescricoes";
 export {
   TAMANHO_MAXIMO_RECEITA,

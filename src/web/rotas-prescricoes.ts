@@ -19,6 +19,7 @@ import {
   prescricoesDoIdoso,
 } from "@/modules/prescricoes";
 import { ErroHttp, json, lerCorpo, lerCorpoBinario } from "./http";
+import { gerarEscalaAposMudanca } from "./rotas-escala";
 import { respostaDeFalha, sessaoDe, texto, uuidDaRota, type Rota } from "./rota";
 
 // Rotas de medicamentos, prescrições e receitas. Todas exigem `prescricao.gerir`, conferida pelo
@@ -158,6 +159,7 @@ export const ROTAS_PRESCRICOES: Rota[] = [
         ip: ctx.ip,
       });
       if (!r.ok) return respostaDeFalha(r);
+      await gerarEscalaAposMudanca(ctx);
       return json(
         { ok: true, prescricaoId: r.prescricaoId, conflitosConfirmados: r.conflitosConfirmados },
         201,
@@ -196,6 +198,7 @@ export const ROTAS_PRESCRICOES: Rota[] = [
         ip: ctx.ip,
       });
       if (!r.ok) return respostaDeFalha(r);
+      await gerarEscalaAposMudanca(ctx);
       return json(
         {
           ok: true,
