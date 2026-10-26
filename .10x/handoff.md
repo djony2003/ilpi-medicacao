@@ -58,4 +58,4 @@ Demonstração do registro com QR ao usuário (ponto de decisão). Depois, M6 (T
 Armazenamento de receitas em disco local e chave única (M8); alergia conferida por nome, com tabela curta de sinônimos; sem limite de tentativas por IP; IP de `X-Forwarded-For` serve só de rastro; PIN errado trava também o login web da mesma pessoa; e-mail único no sistema; sessões vencidas não são apagadas; auditoria sem âncora externa; telas ainda não existem. Lista completa em `decisions/sde`.
 
 ## Pontos de decisão com o usuário
-**Agora (após M5): demonstração do registro com QR.** Antes de M8(casa-piloto e fornecedores).
+**Agora (após M5): demonstração do registro com QR.** Antes de M8, a casa-piloto e fornecedores).
