@@ -29,6 +29,8 @@ const esquema = z
           return false;
         }
       }, "deve ser só a origem, como https://app.casa.exemplo (sem caminho nem barra no fim)"),
+    // Pasta do armazenamento privado de arquivos (receitas) enquanto não há provedor de nuvem.
+    ARMAZENAMENTO_DIR: z.string().min(1).default(".armazenamento"),
     // Chave de 32 bytes em base64 para criptografar campos sensíveis (ex.: segredo do TOTP).
     CHAVE_CAMPOS: z
       .string()

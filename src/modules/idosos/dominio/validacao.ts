@@ -1,15 +1,8 @@
 // Validação e normalização dos dados do idoso. Funções puras: não tocam no banco.
 
-const DATA_ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
+import { dataValida } from "@/compartilhado/datas";
 
-/** Confere formato AAAA-MM-DD e se o dia existe de verdade (30 de fevereiro não passa). */
-export function dataValida(texto: string): boolean {
-  const m = DATA_ISO.exec(texto);
-  if (!m) return false;
-  const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const d = new Date(Date.UTC(ano, mes - 1, dia));
-  return d.getUTCFullYear() === ano && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia;
-}
+export { dataValida };
 
 export function idadeEmAnos(nascimento: string, hoje: Date): number {
   const [a = 0, m = 0, d = 0] = nascimento.split("-").map(Number);

@@ -13,6 +13,7 @@ describe("validação do ambiente", () => {
       NODE_ENV: "development",
       DATABASE_URL: base.DATABASE_URL,
       LOG_NIVEL: "info",
+      ARMAZENAMENTO_DIR: ".armazenamento",
       CHAVE_CAMPOS: CHAVE,
     });
   });

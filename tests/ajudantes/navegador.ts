@@ -8,6 +8,7 @@ export type Resp = {
   corpo: Record<string, unknown>;
   /** Corpo bruto, para respostas que não são JSON (PDF). */
   texto: string;
+  bytes: Buffer;
   cabecalhos: Headers;
   setCookie: string[];
 };
@@ -23,6 +24,7 @@ export class Navegador {
     opcoes: {
       corpo?: unknown;
       brutoCorpo?: string;
+      binario?: Uint8Array;
       origem?: string | null;
       cabecalhos?: Record<string, string>;
       tipo?: string | null;
@@ -33,14 +35,19 @@ export class Navegador {
     if (this.cookies.size > 0) {
       cabecalhos.set("cookie", [...this.cookies].map(([n, v]) => `${n}=${v}`).join("; "));
     }
-    let body: string | undefined;
-    if (opcoes.brutoCorpo !== undefined) body = opcoes.brutoCorpo;
+    let body: string | Uint8Array | undefined;
+    if (opcoes.binario !== undefined) body = opcoes.binario;
+    else if (opcoes.brutoCorpo !== undefined) body = opcoes.brutoCorpo;
     else if (opcoes.corpo !== undefined) body = JSON.stringify(opcoes.corpo);
     if (body !== undefined && opcoes.tipo !== null) {
       cabecalhos.set("content-type", opcoes.tipo ?? "application/json");
     }
     const r = await this.api(
-      new Request(`${ORIGEM}/api${caminho}`, { method: metodo, headers: cabecalhos, body }),
+      new Request(`${ORIGEM}/api${caminho}`, {
+        method: metodo,
+        headers: cabecalhos,
+        body: body as BodyInit | undefined,
+      }),
     );
     const setCookie = r.headers.getSetCookie();
     for (const c of setCookie) {
@@ -52,10 +59,12 @@ export class Navegador {
       if (apagar || valor === "") this.cookies.delete(nome);
       else this.cookies.set(nome, valor);
     }
-    const texto = await r.text();
+    const bytes = Buffer.from(await r.arrayBuffer());
+    const texto = bytes.toString("utf8");
     return {
       status: r.status,
       texto,
+      bytes,
       corpo:
         texto && (r.headers.get("content-type") ?? "").includes("json")
           ? (JSON.parse(texto) as Record<string, unknown>)

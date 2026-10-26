@@ -65,12 +65,24 @@ const STATUS_DE_FALHA: Record<string, number> = {
   pulseira_desconhecida: 404,
   sem_mudanca: 409,
   pulseira_substituida: 409,
+  ja_cadastrado: 409,
+  ja_existe_ativa: 409,
+  em_uso: 409,
+  nao_ativa: 409,
+  medicamento_diferente: 409,
+  conflito_alergia: 409,
+  alto_risco_obrigatorio: 422,
+  medicamento_nao_encontrado: 422,
+  idoso_desligado: 422,
+  arquivo_invalido: 415,
+  arquivo_grande_demais: 413,
 };
 
 /** Traduz uma falha de regra de negócio em resposta HTTP. Motivo desconhecido vira 400. */
-export function respostaDeFalha(f: Falha): Response {
-  const corpo: Record<string, unknown> = { erro: f.motivo };
-  if (f.motivo === "dados_invalidos") corpo.problemas = f.problemas;
+export function respostaDeFalha(f: Falha | { ok: false; motivo: string }): Response {
+  const corpo: Record<string, unknown> = { ...f, erro: f.motivo };
+  delete corpo.ok;
+  delete corpo.motivo;
   return json(corpo, STATUS_DE_FALHA[f.motivo] ?? 400);
 }
 

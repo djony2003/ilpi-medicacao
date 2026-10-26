@@ -44,6 +44,7 @@ import {
   nomeDoCookie,
 } from "./http";
 import { ROTAS_IDOSOS } from "./rotas-idosos";
+import { ROTAS_PRESCRICOES } from "./rotas-prescricoes";
 import { idDaRota, sessaoDe, texto, type Acesso, type Contexto, type Rota } from "./rota";
 
 // API de identidade e administração. Um único despachante recebe Request e devolve Response.
@@ -379,6 +380,7 @@ const ROTAS: Rota[] = [
 
   // ---------------------------------------------------------------- idosos
   ...ROTAS_IDOSOS,
+  ...ROTAS_PRESCRICOES,
 ];
 
 export type DescricaoDeRota = {

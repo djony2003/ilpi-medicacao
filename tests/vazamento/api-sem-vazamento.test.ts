@@ -18,6 +18,8 @@ import { criarCasa, criarUsuario } from "../ajudantes/dados";
 import { Navegador, entrarNaApi } from "../ajudantes/navegador";
 import { criarAtorWeb } from "../ajudantes/sessoes";
 import { adicionarAlergia, adicionarContato, cadastrarIdoso, obterIdoso } from "@/modules/idosos";
+import { anexarReceita, cadastrarMedicamento, prescrever } from "@/modules/prescricoes";
+import { ArmazenamentoEmMemoria } from "@/compartilhado/armazenamento";
 
 // Malha de vazamento entre casas. Percorre TODAS as rotas da API (o inventário vem do próprio
 // código), então uma rota nova passa a ser testada sem ninguém precisar lembrar de incluí-la.
@@ -47,6 +49,9 @@ let idsDeB: {
   alergia: string;
   contato: string;
   pulseira: string;
+  medicamento: string;
+  prescricao: string;
+  receita: string;
 };
 let idosoDeA: string;
 let gestorBToken: string;
@@ -69,7 +74,42 @@ const CORPOS_VALIDOS: Record<string, unknown> = {
   "/idosos/:id/alergias": { substancia: "Veneno", gravidade: "grave" },
   "/idosos/:id/contatos": { nome: "Intruso", parentesco: "Ninguém", telefone: "11999990000" },
   "/idosos/:id/pulseira/regenerar": { motivo: "tentativa de invasão" },
+  "/medicamentos/:id/alto-risco": { altoRisco: true },
+  "/idosos/:id/prescricoes": {
+    medicamentoId: UUID_QUALQUER,
+    tipo: "regular",
+    dose: 1,
+    unidade: "comprimido",
+    via: "oral",
+    inicio: "2026-03-10",
+    altoRisco: false,
+    horarios: [{ hora: "08:00" }],
+  },
+  "/prescricoes/:id/nova-versao": {
+    justificativa: "tentativa de invasão",
+    conteudo: {
+      medicamentoId: UUID_QUALQUER,
+      tipo: "regular",
+      dose: 9,
+      unidade: "comprimido",
+      via: "oral",
+      inicio: "2026-03-10",
+      altoRisco: false,
+      horarios: [{ hora: "09:00" }],
+    },
+  },
+  "/prescricoes/:id/encerrar": { motivo: "tentativa de invasão" },
 };
+
+/** Rotas cujo corpo é um arquivo, não JSON. */
+const PDF_VALIDO = Buffer.from("%PDF-1.7\nconteudo qualquer");
+const BINARIAS = new Set(["/prescricoes/:id/receitas"]);
+const opcoesDeCorpo = (r: DescricaoDeRota) =>
+  r.metodo !== "POST"
+    ? {}
+    : BINARIAS.has(r.caminho)
+      ? { binario: PDF_VALIDO, tipo: "application/pdf" }
+      : { corpo: CORPOS_VALIDOS[r.caminho] ?? {} };
 
 async function logadoNaApi(casaId: string, perfil: "gestor" | "enfermeiro"): Promise<Ator> {
   const segredo = gerarSegredoTotp();
@@ -93,7 +133,8 @@ async function auditoriaDe(casaId: string): Promise<number> {
 beforeAll(async () => {
   app = criarPoolApp(6);
   migrador = criarPoolMigrador();
-  servico = () => ({ pool: app, chaveCampos: CHAVE });
+  const armazenamento = new ArmazenamentoEmMemoria();
+  servico = () => ({ pool: app, chaveCampos: CHAVE, armazenamento });
   api = criarApi({ servico, producao: false });
   casaA = await criarCasa(migrador, "Casa A (quem testa)");
   casaB = await criarCasa(migrador, "Casa B (canários)");
@@ -133,7 +174,39 @@ beforeAll(async () => {
     telefone: "11955554444",
   });
   if (!alergiaB.ok || !contatoB.ok) throw new Error("alergia e contato da casa B deveriam entrar");
+  const medB = await cadastrarMedicamento(servico(), gestorB, {
+    nomeComercial: "REMEDIO-B-QUIMICO",
+    principioAtivo: "SUBSTANCIA-B-QUIMICA",
+    forma: "comprimido",
+    altoRisco: false,
+  });
+  if (!medB.ok) throw new Error("medicamento da casa B deveria entrar");
+  const prescB = await prescrever(servico(), gestorB, {
+    idosoId: idosoB.idosoId,
+    medicamentoId: medB.medicamentoId,
+    tipo: "regular",
+    dose: 1,
+    unidade: "comprimido",
+    via: "oral",
+    inicio: "2026-03-10",
+    fim: null,
+    altoRisco: false,
+    horarios: [{ hora: "08:00" }],
+    instrucoes: "CANARIO-B-INSTRUCOES",
+  });
+  if (!prescB.ok)
+    throw new Error(
+      `prescrição da casa B deveria entrar: ${prescB.motivo} ${JSON.stringify("problemas" in prescB ? prescB.problemas : "")}`,
+    );
+  const recB = await anexarReceita(servico(), gestorB, {
+    prescricaoId: prescB.prescricaoId,
+    bytes: Buffer.from("%PDF-1.7\nCANARIO-B-RECEITA"),
+  });
+  if (!recB.ok) throw new Error("receita da casa B deveria entrar");
   idsDeB = {
+    medicamento: medB.medicamentoId,
+    prescricao: prescB.prescricaoId,
+    receita: recB.receitaId,
     usuarios: [enfB.id, cuidB.id, gestorB.usuarioId],
     dispositivo: dispositivoB.dispositivoId,
     idoso: idosoB.idosoId,
@@ -154,6 +227,13 @@ beforeAll(async () => {
     "CANARIO-B-QUARTO",
     "CANARIO-B-ALERGIA",
     "CANARIO-B-CONTATO",
+    "REMEDIO-B-QUIMICO",
+    "SUBSTANCIA-B-QUIMICA",
+    "CANARIO-B-INSTRUCOES",
+    "CANARIO-B-RECEITA",
+    medB.medicamentoId,
+    prescB.prescricaoId,
+    recB.receitaId,
     "52998224725",
     "11955554444",
     idosoB.idosoId,
@@ -206,6 +286,24 @@ describe("inventário de rotas", () => {
     expect(admin.length).toBeGreaterThan(0);
     for (const r of admin) {
       expect(r.permissao, chave(r)).not.toBeNull();
+      expect(ACOES, chave(r)).toContain(r.permissao);
+    }
+  });
+
+  it("toda rota com sessão declara a permissão que exige, salvo as da própria conta", () => {
+    // Rota nova sem permissão declarada passaria despercebida pela malha de 403: por isso a lista
+    // de exceções é fechada, e crescer exige decisão consciente.
+    const semPermissao = rotas
+      .filter((r) => r.acesso === "sessao" && r.permissao === null)
+      .map(chave)
+      .sort();
+    expect(semPermissao).toEqual([
+      "GET /auth/eu",
+      "POST /auth/reautenticar",
+      "POST /auth/trocar-pin",
+      "POST /auth/trocar-senha",
+    ]);
+    for (const r of rotas.filter((x) => x.permissao !== null)) {
       expect(ACOES, chave(r)).toContain(r.permissao);
     }
   });
@@ -273,19 +371,23 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
     const comId = rotas.filter((r) => r.caminho.includes(":id"));
 
     for (const r of comId) {
-      const doIdoso = r.caminho.startsWith("/idosos");
+      const complementos = {
+        alergiaId: idsDeB.alergia,
+        contatoId: idsDeB.contato,
+        receitaId: idsDeB.receita,
+      };
       const ids = r.caminho.startsWith("/admin/dispositivos")
         ? [idsDeB.dispositivo]
-        : doIdoso
+        : r.caminho.startsWith("/idosos")
           ? [idsDeB.idoso]
-          : idsDeB.usuarios;
+          : r.caminho.startsWith("/medicamentos")
+            ? [idsDeB.medicamento]
+            : r.caminho.startsWith("/prescricoes")
+              ? [idsDeB.prescricao]
+              : idsDeB.usuarios;
       for (const id of ids) {
-        const url = doIdoso
-          ? concreta(r, { id, alergiaId: idsDeB.alergia, contatoId: idsDeB.contato })
-          : concreta(r, id);
-        const resp = await gestorA.nav.chamar(r.metodo, url, {
-          corpo: r.metodo === "POST" ? (CORPOS_VALIDOS[r.caminho] ?? {}) : undefined,
-        });
+        const url = concreta(r, { id, ...complementos });
+        const resp = await gestorA.nav.chamar(r.metodo, url, opcoesDeCorpo(r));
         // Para a casa A, o objeto da casa B simplesmente não existe.
         expect(resp.status, `${chave(r)} com id da casa B`).toBe(404);
         const texto = JSON.stringify(resp.corpo);
@@ -308,6 +410,13 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
         [idsDeB.idoso],
       );
       expect(filhos.rows[0]).toEqual({ alergias: 1, contatos: 1, revogadas: 0 });
+      const clinico = await c.query(
+        `SELECT (SELECT count(*) FROM prescricao WHERE id = $1 AND status = 'ativa' AND dose = 1 AND versao = 1)::int AS prescricao,
+                (SELECT count(*) FROM medicamento WHERE id = $2 AND ativo AND NOT alto_risco_padrao)::int AS medicamento,
+                (SELECT count(*) FROM receita_prescricao WHERE prescricao_id = $1)::int AS receitas`,
+        [idsDeB.prescricao, idsDeB.medicamento],
+      );
+      expect(clinico.rows[0]).toEqual({ prescricao: 1, medicamento: 1, receitas: 1 });
       const u = await c.query(
         "SELECT id FROM usuario WHERE id = ANY($1) AND ativo AND bloqueado_ate IS NULL",
         [idsDeB.usuarios],

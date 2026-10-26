@@ -45,6 +45,33 @@ async function lerComLimite(request: Request): Promise<string> {
   return new TextDecoder("utf-8", { fatal: false }).decode(Buffer.concat(partes));
 }
 
+/**
+ * Lê um corpo binário (upload de arquivo) com limite rígido, sem carregar além dele na memória.
+ * Quem chama confere o conteúdo de verdade (o tipo declarado pelo cliente não vale como prova).
+ */
+export async function lerCorpoBinario(request: Request, limiteBytes: number): Promise<Uint8Array> {
+  const declarado = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declarado) && declarado > limiteBytes) {
+    throw new ErroHttp(413, "arquivo_grande_demais");
+  }
+  const leitor = request.body?.getReader();
+  if (!leitor) throw new ErroHttp(400, "requisicao_invalida");
+  const partes: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await leitor.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limiteBytes) {
+      await leitor.cancel();
+      throw new ErroHttp(413, "arquivo_grande_demais");
+    }
+    partes.push(value);
+  }
+  if (total === 0) throw new ErroHttp(400, "requisicao_invalida");
+  return Buffer.concat(partes);
+}
+
 /** Lê e valida o corpo JSON. Qualquer desvio vira 400, sem ecoar o que foi enviado. */
 export async function lerCorpo<T>(request: Request, esquema: z.ZodType<T>): Promise<T> {
   const tipo = request.headers.get("content-type") ?? "";
