@@ -15,9 +15,11 @@ export {
   obterPrescricao,
   prescrever,
   prescricoesDoIdoso,
+  prescricoesAtivasParaEstoque,
   prescricoesRegularesAtivas,
   type FalhaDeAlergia,
   type NovaPrescricao,
+  type PrescricaoAtivaParaEstoque,
   type PrescricaoDetalhada,
   type PrescricaoRegularAtiva,
 } from "./dados/prescricoes";

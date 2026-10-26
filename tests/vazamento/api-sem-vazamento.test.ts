@@ -24,6 +24,7 @@ import { criarAtorWeb, type AtorWeb } from "../ajudantes/sessoes";
 import { escalaDoPlantao, gerarDosesDaCasa } from "@/modules/administracao";
 import { adicionarAlergia, adicionarContato, cadastrarIdoso, obterIdoso } from "@/modules/idosos";
 import { anexarReceita, cadastrarMedicamento, prescrever } from "@/modules/prescricoes";
+import { iniciarInventario, registrarEntrada } from "@/modules/estoque";
 import { ArmazenamentoEmMemoria } from "@/compartilhado/armazenamento";
 
 // Malha de vazamento entre casas. Percorre TODAS as rotas da API (o inventário vem do próprio
@@ -57,6 +58,9 @@ let idsDeB: {
   medicamento: string;
   prescricao: string;
   receita: string;
+  lote: string;
+  codigoDoLote: string;
+  inventario: string;
 };
 let idosoDeA: string;
 let gestorBToken: string;
@@ -105,6 +109,12 @@ const CORPOS_VALIDOS: Record<string, unknown> = {
     },
   },
   "/prescricoes/:id/encerrar": { motivo: "tentativa de invasão" },
+  "/estoque/lotes/:id/etiqueta": { copias: 1 },
+  "/estoque/lotes/:id/fracionar": { quantidade: 1 },
+  "/estoque/lotes/:id/saidas": { tipo: "perda", quantidade: 1, motivo: "tentativa de invasão" },
+  "/estoque/inventarios/:id/contagens": { loteId: UUID_QUALQUER, contado: 1 },
+  "/estoque/inventarios/:id/concluir": { justificativas: {}, aceitarNaoContados: true },
+  "/estoque/inventarios/:id/cancelar": {},
 };
 
 /** Rotas cujo corpo é um arquivo, não JSON. */
@@ -212,6 +222,26 @@ beforeAll(async () => {
     bytes: Buffer.from("%PDF-1.7\nCANARIO-B-RECEITA"),
   });
   if (!recB.ok) throw new Error("receita da casa B deveria entrar");
+  // Estoque da casa B: um lote com saldo e um inventário aberto.
+  const loteB = await registrarEntrada(servico(), gestorB, {
+    medicamentoId: medB.medicamentoId,
+    idosoId: idosoB.idosoId,
+    numeroLote: "CANARIO-B-LOTE",
+    validade: "2030-01-31",
+    unidade: "comprimido",
+    quantidade: 30,
+    observacao: "CANARIO-B-OBS-LOTE",
+  });
+  if (!loteB.ok) throw new Error("lote da casa B deveria entrar");
+  const invB = await iniciarInventario(servico(), gestorB);
+  if (!invB.ok) throw new Error("inventário da casa B deveria abrir");
+  const codigoDoLoteB = await comContexto(app, { casaId: casaB }, async (c) => {
+    const r = await c.query<{ codigo_qr: string }>(
+      "SELECT codigo_qr FROM lote_estoque WHERE id = $1",
+      [loteB.loteId],
+    );
+    return r.rows[0]?.codigo_qr ?? "";
+  });
   idsDeB = {
     medicamento: medB.medicamentoId,
     prescricao: prescB.prescricaoId,
@@ -222,6 +252,9 @@ beforeAll(async () => {
     alergia: alergiaB.alergiaId,
     contato: contatoB.contatoId,
     pulseira: idosoB.codigoPulseira,
+    lote: loteB.loteId,
+    codigoDoLote: codigoDoLoteB,
+    inventario: invB.inventarioId,
   };
   canarios = [
     "CANARIO-B-NOME-ENFERMEIRO",
@@ -249,6 +282,11 @@ beforeAll(async () => {
     alergiaB.alergiaId,
     contatoB.contatoId,
     idosoB.codigoPulseira,
+    "CANARIO-B-LOTE",
+    "CANARIO-B-OBS-LOTE",
+    loteB.loteId,
+    codigoDoLoteB,
+    invB.inventarioId,
     ...[enfB.email, gestorB.usuario.email].filter((x): x is string => Boolean(x)),
   ];
 
@@ -403,15 +441,19 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
         contatoId: idsDeB.contato,
         receitaId: idsDeB.receita,
       };
-      const ids = r.caminho.startsWith("/admin/dispositivos")
-        ? [idsDeB.dispositivo]
-        : r.caminho.startsWith("/idosos")
-          ? [idsDeB.idoso]
-          : r.caminho.startsWith("/medicamentos")
-            ? [idsDeB.medicamento]
-            : r.caminho.startsWith("/prescricoes")
-              ? [idsDeB.prescricao]
-              : idsDeB.usuarios;
+      const ids = r.caminho.startsWith("/estoque/lotes")
+        ? [idsDeB.lote]
+        : r.caminho.startsWith("/estoque/inventarios")
+          ? [idsDeB.inventario]
+          : r.caminho.startsWith("/admin/dispositivos")
+            ? [idsDeB.dispositivo]
+            : r.caminho.startsWith("/idosos")
+              ? [idsDeB.idoso]
+              : r.caminho.startsWith("/medicamentos")
+                ? [idsDeB.medicamento]
+                : r.caminho.startsWith("/prescricoes")
+                  ? [idsDeB.prescricao]
+                  : idsDeB.usuarios;
       for (const id of ids) {
         const url = concreta(r, { id, ...complementos });
         const resp = await gestorA.nav.chamar(r.metodo, url, opcoesDeCorpo(r));
@@ -453,6 +495,23 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
         idsDeB.dispositivo,
       ]);
       expect(d.rowCount).toBe(1);
+      const estoque = await c.query(
+        `SELECT (SELECT saldo::int FROM saldo_lote WHERE lote_id = $1) AS saldo,
+                (SELECT count(*) FROM movimento_estoque WHERE lote_id = $1)::int AS movimentos,
+                (SELECT count(*) FROM lote_estoque)::int AS lotes,
+                (SELECT count(*) FROM impressao_etiqueta)::int AS etiquetas,
+                (SELECT status::text FROM inventario WHERE id = $2) AS inventario,
+                (SELECT count(*) FROM inventario_item WHERE contado IS NOT NULL)::int AS contados`,
+        [idsDeB.lote, idsDeB.inventario],
+      );
+      expect(estoque.rows[0]).toEqual({
+        saldo: 30,
+        movimentos: 1,
+        lotes: 1,
+        etiquetas: 0,
+        inventario: "aberto",
+        contados: 0,
+      });
     });
     // O gestor da casa B continua com a sessão dele.
     expect(await autenticarSessao(servico(), gestorBToken)).not.toBeNull();

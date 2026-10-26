@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de medicação para casas de idosos (ILPI)
 **Feature atual:** medicacao-ilpi (V1)
-**Fase atual:** Fase 4 — Implementação. M3 concluído; **ponto de decisão com o usuário (validação de mercado)** antes de M4
+**Fase atual:** Fase 4 — Implementação. M4 concluído; próximo: M5 (administração com QR)
 **Atualizado em:** 2026-10-26
 
 ## Fases
@@ -12,7 +12,7 @@
 | 1. Estratégia | Concluída |
 | 2. Design | Concluída. ADR-001 aceito |
 | 3. Planejamento | Concluída. 62 tarefas em 9 marcos |
-| 4. Implementação | Em andamento. M0 a M3 concluídos (T01 a T28). Próxima tarefa: T29 (após a decisão do usuário) |
+| 4. Implementação | Em andamento. M0 a M4 concluídos (T01 a T34). Próxima tarefa: T35 |
 | 5. Verificação | Não iniciada |
 | 6. Entrega | Não iniciada |
 
@@ -24,12 +24,15 @@ Plano completo: `.10x/decisions/engineering-manager/medicacao-ilpi.md`
 | M0 Fundação | T01 a T06 | **Concluído** |
 | M1 Identidade e auditoria | T07 a T16 | **Concluído** |
 | M2 Idosos e prescrições | T17 a T23 | **Concluído** |
-| M3 Escala de doses | T24 a T28 | **Concluído** (decisão com o usuário: validação de mercado) |
-| M4 Estoque | T29 a T34 | Pendente |
+| M3 Escala de doses | T24 a T28 | **Concluído** (usuário optou por seguir sem validação prévia) |
+| M4 Estoque | T29 a T34 | **Concluído** |
 | M5 Administração | T35 a T46 | Pendente |
 | M6 Alertas | T47 a T52 | Pendente |
 | M7 Gestão e auditoria | T53 a T56 | Pendente |
 | M8 Verificação e prontidão | T57 a T62 | Pendente |
+
+## Qualidade em M4
+690 testes passando (37 arquivos, PostgreSQL real), tipos, lint, formatação e build limpos, `npm audit` sem vulnerabilidades. Cinco testes de mutação detectados (ordem FEFO e lote vencido na previsão, reautenticação na saída e no fechamento do inventário, gatilho de saldo não negativo). PDFs da etiqueta e da reposição renderizados e conferidos; o QR da etiqueta é lido de volta pela API. Malha de vazamento estendida com lote e inventário da casa B.
 
 ## Qualidade em M3
 530 testes passando (30 arquivos, PostgreSQL real), tipos, lint, formatação e build limpos, `npm audit` sem vulnerabilidades. Dezessete testes de mutação detectados (geração, gatilhos, escala, folha, geração imediata). A folha de contingência foi renderizada e conferida visualmente; o agendador foi executado como processo de verdade (rodada, batimento e parada limpa).

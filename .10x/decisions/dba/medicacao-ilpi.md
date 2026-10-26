@@ -112,3 +112,9 @@ Arquivos `db/migracoes/NNNN_nome.sql`, aplicados em ordem, cada um em uma transa
 - **Login antes de haver casa no contexto:** o login precisa localizar o usuário por e-mail antes de saber a casa, e `FORCE ROW LEVEL SECURITY` vale até para funções `SECURITY DEFINER` do dono. Decisão de arquitetura necessária em M1 (ver handoff).
 - **Auditoria:** a tabela precisa de `REVOKE UPDATE` para `ilpi_app` (o padrão concede UPDATE) e de política que só permita INSERT e SELECT.
 - Índices: ainda não há tabelas de negócio.
+
+## M4 — Estoque (concluído em 2026-10-26)
+- Migração `0007_estoque.sql`: `lote_estoque`, `movimento_estoque` (seq, sinais por tipo, motivo obrigatório, par de fracionamento), view `saldo_lote` (security_invoker), `inventario` (um aberto por casa), `inventario_item` (esperado capturado na contagem), `impressao_etiqueta`. Tudo com RLS, FKs compostas e imutabilidade por gatilho.
+- Saldo não negativo garantido por gatilho com advisory lock por lote; testado sob concorrência.
+- Previsão por simulação FEFO; reposição = demanda que o estoque utilizável não cobre em 30 dias.
+- Pendências para M5: FK `administracao_id`, consumo respeitando validade, conversão de unidade, média SOS real, localizar lote por QR.

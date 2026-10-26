@@ -1,11 +1,11 @@
 # Handoff
 
-**De:** Implementação, marco M3 concluído
-**Para:** Decisão do usuário (validação de mercado); depois, M4 (estoque)
+**De:** Implementação, marco M4 concluído
+**Para:** M5 (administração com conferência por QR), após o aval do usuário
 **Data:** 2026-10-26
 
 ## Onde estamos
-Código em `/home/claude/ilpi` (repositório git próprio, com o histórico do `.10x`; remoto privado `djony2003/ilpi-medicacao`). M0 a M3 prontos: fundação, identidade (login com senha e TOTP, PIN no tablet aprovado, sessões, permissões, gestão de usuários), auditoria encadeada, API HTTP com malha de vazamento, idosos com pulseira QR e PDF, prescrições versionadas com receita cifrada, e escala de doses (geração idempotente com fuso e horário de verão, agendador, escala do plantão e folha de contingência em PDF). Detalhes em `.10x/decisions/sde/medicacao-ilpi.md` e `.10x/decisions/dba/medicacao-ilpi.md`; decisões em `.10x/adrs/` (001 monólito modular com RLS, 002 busca por chave secreta sob RLS).
+Código em `/home/claude/ilpi` (repositório git próprio, com o histórico do `.10x`; remoto privado `djony2003/ilpi-medicacao`). M0 a M3 prontos: fundação, identidade (login com senha e TOTP, PIN no tablet aprovado, sessões, permissões, gestão de usuários), auditoria encadeada, API HTTP com malha de vazamento, idosos com pulseira QR e PDF, prescrições versionadas com receita cifrada, escala de doses (geração idempotente com fuso e horário de verão, agendador, escala do plantão e folha de contingência em PDF) e estoque (lotes com etiqueta QR, fracionamento para o idoso, saídas com reautenticação, previsão de término, lista de reposição em PDF, sobras e inventário com ajustes justificados). Detalhes em `.10x/decisions/sde/medicacao-ilpi.md` e `.10x/decisions/dba/medicacao-ilpi.md`; decisões em `.10x/adrs/` (001 monólito modular com RLS, 002 busca por chave secreta sob RLS).
 
 Para rodar: `docker compose up -d` (ou um PostgreSQL 16 local), `cp .env.example .env`, `npm install`, `npm run db:setup && npm run db:migrar`, `npm run verificar`.
 
@@ -33,11 +33,19 @@ Para rodar: `docker compose up -d` (ou um PostgreSQL 16 local), `cp .env.example
 - **Orquestração entre módulos** fica na camada web (`gerarEscalaAposMudanca`), não módulo chamando módulo.
 - **Mutação:** ao testar o gatilho no SQL, altere `db/migracoes/0006_escala.sql`: o banco de teste é refeito a cada execução.
 
+## Padrões que M4 acrescentou
+- **Saldo nunca é coluna:** é soma de `movimento_estoque` (view `saldo_lote`). Movimentos e lotes são imutáveis (gatilho + REVOKE UPDATE). Corrigir = novo movimento (`ajuste`).
+- **Saldo não negativo no banco:** gatilho com `pg_advisory_xact_lock` por lote; a corrida vira `saldo_insuficiente` via `traduzirSaldoInsuficiente`.
+- **Ordem estável:** tabelas de histórico têm `seq` identity (o relógio injetável gera horários iguais).
+- **Quantidades em milésimos inteiros** (`dominio/quantidade.ts`); passo 0,25 para unidades contáveis.
+- **Previsão é simulação dose a dose** (`dominio/previsao.ts`), FEFO, ignorando lote vencido; as "reservas" decidem se a prescrição consome do estoque individual ou do comum.
+- **STATUS_DE_FALHA** em `src/web/rota.ts`: falha nova precisa de status lá.
+
 ## Próximas tarefas
-Decisão do usuário: validar com 2 ou 3 casas antes de seguir. Depois, M4 (estoque, T29 a T34): lotes e validade, entrada, saldo por medicamento, baixa na administração (M5), alerta de estoque baixo e vencimento, etiqueta com QR do lote (`desenharQr` já existe em `compartilhado/pdf.ts`).
+M5 (T35 a T46): registro da administração com conferência QR (pulseira `ILPI:I:` + etiqueta `ILPI:L:`). Pendências do M4 para lá: FK de `movimento_estoque.administracao_id`; consumo FEFO recusando lote vencido (`loteVencido`); conversão de unidade (mg x comprimido); média SOS dos últimos 14 dias para a previsão; rota para localizar lote pelo QR.
 
 ## Limitações herdadas (não esquecer)
 Armazenamento de receitas em disco local e chave única (M8); alergia conferida por nome, com tabela curta de sinônimos; sem limite de tentativas por IP; IP de `X-Forwarded-For` serve só de rastro; PIN errado trava também o login web da mesma pessoa; e-mail único no sistema; sessões vencidas não são apagadas; auditoria sem âncora externa; telas ainda não existem. Lista completa em `decisions/sde`.
 
 ## Pontos de decisão com o usuário
-**Agora (após M3): validação de mercado.** Depois, após M5 (demonstração do registro com QR) e antes de M8 (casa-piloto e fornecedores).
+Após M5 (demonstração do registro com QR) e antes de M8 (casa-piloto e fornecedores).

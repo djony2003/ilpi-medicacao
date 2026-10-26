@@ -44,6 +44,7 @@ import {
   nomeDoCookie,
 } from "./http";
 import { ROTAS_ESCALA } from "./rotas-escala";
+import { ROTAS_ESTOQUE } from "./rotas-estoque";
 import { ROTAS_IDOSOS } from "./rotas-idosos";
 import { ROTAS_PRESCRICOES } from "./rotas-prescricoes";
 import { idDaRota, sessaoDe, texto, type Acesso, type Contexto, type Rota } from "./rota";
@@ -383,6 +384,7 @@ const ROTAS: Rota[] = [
   ...ROTAS_IDOSOS,
   ...ROTAS_PRESCRICOES,
   ...ROTAS_ESCALA,
+  ...ROTAS_ESTOQUE,
 ];
 
 export type DescricaoDeRota = {

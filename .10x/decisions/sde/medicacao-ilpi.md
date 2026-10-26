@@ -132,3 +132,9 @@
 - A lista de chaves proibidas do log precisa crescer junto com o esquema do banco.
 - Sem `pg_hba` ou TLS configurados no banco local: apenas para desenvolvimento.
 - O módulo de ambiente ainda não é usado por nenhum código de aplicação (entra com o login em M1).
+
+## M4 — Estoque (concluído em 2026-10-26)
+- Migração `0007_estoque.sql`: `lote_estoque`, `movimento_estoque` (seq, sinais por tipo, motivo obrigatório, par de fracionamento), view `saldo_lote` (security_invoker), `inventario` (um aberto por casa), `inventario_item` (esperado capturado na contagem), `impressao_etiqueta`. Tudo com RLS, FKs compostas e imutabilidade por gatilho.
+- Saldo não negativo garantido por gatilho com advisory lock por lote; testado sob concorrência.
+- Previsão por simulação FEFO; reposição = demanda que o estoque utilizável não cobre em 30 dias.
+- Pendências para M5: FK `administracao_id`, consumo respeitando validade, conversão de unidade, média SOS real, localizar lote por QR.

@@ -643,3 +643,59 @@ export async function prescricoesRegularesAtivas(c: PoolClient): Promise<Prescri
     horarios: horarios.get(l.id) ?? [],
   }));
 }
+
+export type PrescricaoAtivaParaEstoque = {
+  id: string;
+  idosoId: string;
+  medicamentoId: string;
+  tipo: TipoDePrescricao;
+  dose: number;
+  unidade: UnidadeDeDose;
+  inicio: string;
+  fim: string | null;
+  sosLimiteDiario: number | null;
+  horarios: Horario[];
+};
+
+/**
+ * Prescrições ativas (regulares e SOS) de idosos que estão na casa: é a demanda de remédio que o
+ * estoque precisa cobrir. Idoso hospitalizado ou desligado não consome, então fica de fora.
+ */
+export async function prescricoesAtivasParaEstoque(
+  c: PoolClient,
+): Promise<PrescricaoAtivaParaEstoque[]> {
+  const r = await c.query<{
+    id: string;
+    idoso_id: string;
+    medicamento_id: string;
+    tipo: TipoDePrescricao;
+    dose: string;
+    unidade: UnidadeDeDose;
+    inicio: string;
+    fim: string | null;
+    sos_limite_diario: number | null;
+  }>(
+    `SELECT p.id, p.idoso_id, p.medicamento_id, p.tipo, p.dose::text AS dose, p.unidade,
+            p.inicio::text AS inicio, p.fim::text AS fim, p.sos_limite_diario
+       FROM prescricao p
+       JOIN idoso i ON i.id = p.idoso_id AND i.casa_id = p.casa_id
+      WHERE p.status = 'ativa' AND i.status = 'ativo'
+      ORDER BY p.id`,
+  );
+  const horarios = await horariosDe(
+    c,
+    r.rows.map((l) => l.id),
+  );
+  return r.rows.map((l) => ({
+    id: l.id,
+    idosoId: l.idoso_id,
+    medicamentoId: l.medicamento_id,
+    tipo: l.tipo,
+    dose: Number(l.dose),
+    unidade: l.unidade,
+    inicio: l.inicio,
+    fim: l.fim,
+    sosLimiteDiario: l.sos_limite_diario,
+    horarios: horarios.get(l.id) ?? [],
+  }));
+}
