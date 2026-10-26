@@ -41,7 +41,7 @@ Plano completo: `.10x/decisions/engineering-manager/medicacao-ilpi.md`
 Nenhum.
 
 ## Pendências
-- A CI ainda não foi vista rodando no GitHub (o push do M1 é o primeiro com os novos jobs); confirmar.
+- **A CI do GitHub não inicia:** os jobs falham em segundos com "conta bloqueada por problema de cobrança" (confirmado nas execuções de M0, M1 e M2). Não é falha do código: precisa o dono da conta resolver a cobrança no GitHub. Enquanto isso, a verificação roda localmente (`npm run verificar`).
 - Reavaliar a migração do ESLint 9 para o 10.
 - Limite de tentativas por IP no login, âncora externa da auditoria, limpeza de sessões (todos para M8; detalhes em `decisions/sde`).
 - Telas (login, tablet, administração, idosos, prescrições) ainda não existem (o motor e a API estão prontos); entram junto com as telas de cada marco.
