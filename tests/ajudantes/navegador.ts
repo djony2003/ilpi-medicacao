@@ -6,6 +6,8 @@ export const ORIGEM = "http://localhost";
 export type Resp = {
   status: number;
   corpo: Record<string, unknown>;
+  /** Corpo bruto, para respostas que não são JSON (PDF). */
+  texto: string;
   cabecalhos: Headers;
   setCookie: string[];
 };
@@ -53,7 +55,11 @@ export class Navegador {
     const texto = await r.text();
     return {
       status: r.status,
-      corpo: texto ? (JSON.parse(texto) as Record<string, unknown>) : {},
+      texto,
+      corpo:
+        texto && (r.headers.get("content-type") ?? "").includes("json")
+          ? (JSON.parse(texto) as Record<string, unknown>)
+          : {},
       cabecalhos: r.headers,
       setCookie,
     };

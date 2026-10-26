@@ -8,6 +8,7 @@ import { criarPoolApp, criarPoolMigrador } from "../ajudantes/banco";
 import { criarCasa, criarUsuario } from "../ajudantes/dados";
 import { Navegador, entrarNaApi } from "../ajudantes/navegador";
 
+const UUID_INEXISTENTE = "00000000-0000-4000-8000-0000000000aa";
 const CHAVE = process.env.CHAVE_CAMPOS ?? "";
 
 let app: pg.Pool;
@@ -198,6 +199,25 @@ describe("API de idosos", () => {
     const lido = await tablet.post("/pulseira/localizar", { leitura: antigo });
     expect(lido.status).toBe(409);
     expect(lido.corpo).toEqual({ erro: "pulseira_substituida" });
+  });
+
+  it("emitir a pulseira devolve um PDF sem cache, e só quem administra o cadastro pode", async () => {
+    const id = await cadastrar();
+    const r = await enfermeiro.chamar("POST", `/idosos/${id}/pulseira/emitir`);
+    expect(r.status).toBe(200);
+    expect(r.cabecalhos.get("content-type")).toBe("application/pdf");
+    expect(r.cabecalhos.get("cache-control")).toContain("no-store");
+    expect(r.texto.startsWith("%PDF-")).toBe(true);
+    expect((await tablet.post(`/idosos/${id}/pulseira/emitir`)).status).toBe(403);
+    expect((await enfermeiro.post(`/idosos/${UUID_INEXISTENTE}/pulseira/emitir`)).status).toBe(404);
+    const emissoes = await comContexto(app, { casaId }, async (c) => {
+      const l = await c.query(
+        "SELECT 1 FROM auditoria WHERE acao = 'idoso.pulseira_emitida' AND entidade_id = $1",
+        [id],
+      );
+      return l.rowCount;
+    });
+    expect(emissoes).toBe(1);
   });
 
   it("respostas não ficam em cache e erros não vazam detalhes", async () => {

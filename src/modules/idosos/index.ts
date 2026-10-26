@@ -42,3 +42,4 @@ export {
   type EntradaIdoso,
   type Gravidade,
 } from "./dominio/validacao";
+export { gerarPdfDaPulseira, type DadosParaPulseira } from "./dominio/pulseira-pdf";

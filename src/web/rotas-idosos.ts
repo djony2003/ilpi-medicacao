@@ -7,7 +7,9 @@ import {
   desativarAlergia,
   desativarContato,
   editarIdoso,
+  emitirPulseira,
   GRAVIDADES,
+  gerarPdfDaPulseira,
   listarIdosos,
   localizarPorPulseira,
   mudarStatusDoIdoso,
@@ -223,6 +225,30 @@ export const ROTAS_IDOSOS: Rota[] = [
         ip: ctx.ip,
       });
       return r.ok ? json({ ok: true }) : respostaDeFalha(r);
+    },
+  },
+  {
+    // POST: cada impressão é uma ação registrada na trilha. O PDF é a única saída do código.
+    metodo: "POST",
+    caminho: "/idosos/:id/pulseira/emitir",
+    acesso: "sessao",
+    permissao: "idoso.gerir",
+    async tratar(ctx) {
+      const r = await emitirPulseira(ctx.servico, sessaoDe(ctx), {
+        idosoId: uuidDaRota(ctx, "id"),
+        ip: ctx.ip,
+      });
+      if (!r.ok) return respostaDeFalha(r);
+      const pdf = await gerarPdfDaPulseira(r.pulseira);
+      return new Response(Buffer.from(pdf), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": 'inline; filename="identificacao.pdf"',
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
     },
   },
   {
