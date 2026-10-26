@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Tipos, lint, testes e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Valores abaixo são descartáveis: existem só para o banco efêmero deste job.
+    env:
+      NODE_ENV: test
+      ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      ILPI_APP_PASSWORD: ci_app_descartavel
+      ILPI_MIGRADOR_PASSWORD: ci_migrador_descartavel
+      MIGRATOR_DATABASE_URL: postgres://ilpi_migrador:ci_migrador_descartavel@localhost:5432/ilpi_test
+      DATABASE_URL: postgres://ilpi_app:ci_app_descartavel@localhost:5432/ilpi_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Lint (inclui fronteiras de módulo)
+        run: npm run lint
+
+      - name: Formatação
+        run: npm run format:check
+
+      - name: Preparar banco de teste
+        run: |
+          npm run db:setup
+          npm run db:migrar
+
+      - name: Testes (regras, isolamento entre casas, RLS)
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  seguranca:
+    name: Dependências e segredos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Auditar dependências
+        run: npm audit --audit-level=high
+
+      - name: Buscar segredos no histórico
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
