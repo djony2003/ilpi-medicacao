@@ -1,5 +1,34 @@
 # DBA — medicacao-ilpi
 
+## Estado em M2 (2026-10-26)
+
+### Tabelas (migrações 0004 e 0005), todas com RLS habilitado e forçado
+Filhos usam chave estrangeira composta `(pai_id, casa_id)`: um filho nunca aponta para um pai de outra casa, mesmo com erro de código (testado).
+
+| Tabela | Observações |
+|---|---|
+| `idoso` | `codigo_pulseira` único com checagem de formato; CPF cifrado; nunca apagada (status) |
+| `pulseira_revogada` | Códigos aposentados, para distinguir "substituída" de "desconhecida" |
+| `alergia`, `contato_emergencia` | Desativação em vez de exclusão; telefone cifrado |
+| `medicamento` | Índice único por casa ignorando caixa e espaços; `alto_risco_padrao` |
+| `prescricao` | Versionada (`grupo_id`, `versao`, `substitui_id`); só o estado muda depois de criada |
+| `horario_prescricao` | Só INSERT (UPDATE revogado); dias 1..7 (ISO); hora no fuso da casa |
+| `receita_prescricao` | Só INSERT; chave do objeto única; tipo, tamanho (até 10 MB) e SHA-256 |
+
+### Garantias no banco (valem mesmo se a aplicação errar)
+- Gatilho `prescricao_conteudo_imutavel`: qualquer UPDATE no conteúdo clínico falha; encerrada ou substituída não reabre.
+- Índice parcial `prescricao_uma_ativa_por_grupo`: no máximo uma versão ativa por prescrição.
+- Checagens: SOS exige indicação, limite e intervalo (regular não os tem); fim >= início; versão 2+ exige justificativa e `substitui_id`; estado coerente com encerramento.
+- Sem DELETE para a aplicação em nenhuma tabela; sem UPDATE em horários e receitas.
+
+### Índices
+`idoso (casa_id, status)`, `alergia (idoso_id) WHERE ativa`, `contato (idoso_id) WHERE ativo`, `prescricao (idoso_id) WHERE ativa`, `prescricao (medicamento_id) WHERE ativa`, `receita_prescricao (prescricao_id)`.
+
+### Pendências
+- Doses por horário diferentes dentro de uma prescrição (hoje uma dose para todos os horários).
+- Fuso: `casa.fuso_horario` é usado para "hoje"; horário de verão e geração de doses entram em M3.
+- A tabela de doses agendadas (`dose_agendada`) e o estoque entram em M3 e M4 seguindo o mesmo padrão (composta com `casa_id`).
+
 ## Estado em M1 (2026-10-25)
 
 ### Tabelas (migrações 0002 e 0003), todas com RLS habilitado e forçado

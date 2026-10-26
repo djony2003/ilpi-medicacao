@@ -1,5 +1,35 @@
 # SDE — medicacao-ilpi
 
+## M2 Idosos e prescrições — concluído em 2026-10-26 (T17 a T23)
+
+### O que foi construído
+- **Idosos (`src/modules/idosos`):** cadastro com alergias e contatos de emergência; editar só os campos enviados (a auditoria guarda NOMES de campos); situação (ativo, hospitalizado, desligado) com antes e depois; listagem com filtro e contagem de alergias; CPF e telefone cifrados (AES-256-GCM) com versões mascaradas nas telas, e `revelarDadosSensiveis` como ação própria e auditada (POST, não GET). Nada é apagado.
+- **Pulseira QR (T18/T19):** código opaco de 20 caracteres sem 0/O/1/I/L; o QR carrega `ILPI:I:<código>` (o de lote será `ILPI:L:`), nunca dados da pessoa. O tablet lê o QR, o código agrupado (`XXXXX-XXXXX-...`) ou em minúsculas (`localizarPorPulseira`, permissão `escala.ver`). Trocar a pulseira exige motivo, aposenta a antiga (leitura devolve "pulseira substituída", não "desconhecida") e emite a nova. `POST /idosos/:id/pulseira/emitir` devolve o PDF (tira de 190x25 mm e cartão de 85,6x54 mm, QR em vetor); cada emissão é auditada. O código nunca aparece em JSON nem na auditoria.
+- **Prescrições (`src/modules/prescricoes`):** catálogo por casa (princípio ativo, concentração, forma, alto risco padrão, sugerido por lista de alta vigilância), prescrição regular ou SOS com horários por dia da semana, vigência, alto risco e prescritor. **Versionamento:** mudar dose, via ou horário substitui a versão atual e cria a seguinte, com justificativa obrigatória e lista dos campos alterados na auditoria. Encerrar exige motivo. Conferência de alergia (mesma substância, sinônimos populares e famílias como penicilinas e anti-inflamatórios) antes de gravar: conflito devolve 409 com as alergias, e só grava com justificativa de 10+ caracteres, guardada na própria prescrição.
+- **Domínio puro (T21):** validação, vigência (fim inclusivo), `diferencasClinicas`, `verificarLimiteSos` (janela móvel de 24 h, informa quando libera), `conflitosComAlergia`, `sugerirAltoRisco`, `horariosNoDia`, `datas.ts` compartilhado.
+- **Receita (T22/T23):** upload binário (JPEG, PNG ou PDF, até 10 MB) com tipo detectado pelos primeiros bytes, cifrado pela aplicação com o contexto (a chave do objeto) como dado autenticado, gravado em armazenamento privado (`Armazenamento`: disco local para desenvolvimento, memória para testes; provedor de nuvem em M8). Sem link público: o download passa pela API com sessão, permissão e registro na trilha, com `nosniff`, `no-store` e CSP `sandbox`. Integridade conferida por SHA-256 na leitura.
+- **API:** `rota.ts` (tipos e ajudantes comuns), `rotas-idosos.ts`, `rotas-prescricoes.ts`; `respostaDeFalha` traduz o motivo em HTTP (409 conflito, 422 regra, 413/415 arquivo). A malha de vazamento ganhou canários da casa B (idoso, alergia, contato, pulseira, medicamento, prescrição, receita) e um teste que obriga toda rota com sessão a declarar `permissao` (lista de exceções fechada: `/auth/eu`, reautenticar, trocar senha e PIN).
+
+### Verificação
+471 testes (25 arquivos) contra PostgreSQL real; tipos, lint, formatação e build limpos; `npm audit` sem vulnerabilidades. O QR do PDF é lido de volta: o teste rasteriza o PDF e decodifica os dois QR com `jsQR`.
+**Testes de mutação (todos pegos):** sem conferência de alergia; nova versão aceitando versão não ativa; sem `FOR UPDATE` na nova versão; receita sem dado autenticado; tipo de arquivo não conferido; leitura de receita de outra prescrição; leitura sem auditoria; "hoje" em UTC em vez do fuso da casa; duplicata permitida; alto risco ignorado; sem gatilho de imutabilidade; horário atualizável; sem índice de uma versão ativa; rota sem permissão declarada (esta revelou lacuna, corrigida).
+
+### Desvios do plano
+| Desvio | Motivo |
+|---|---|
+| Receita servida pela API, sem link temporário assinado | Com armazenamento local não há URL pública; passar pela API dá sessão, permissão e auditoria a cada leitura. Com provedor de nuvem, avaliar URL assinada de vida curta em M8 |
+| Cifra do arquivo na aplicação (não só no provedor) | O provedor guarda só bytes cifrados; a troca de arquivo entre registros é detectada |
+| `justificativa` da versão 1 guarda a confirmação de alergia | Evita nova coluna; a auditoria guarda só os ids das alergias |
+| Janela móvel de 24 h para o limite diário de SOS | Leitura clínica segura: o dia do calendário permitiria dobrar a dose em torno da meia-noite |
+
+### Dívida técnica e limitações conhecidas
+- **Provedor de armazenamento e chaves (KMS):** hoje disco local e `CHAVE_CAMPOS` única (M8). Sem rotação de chave.
+- **Conferência de alergia por nome:** tabela curta de sinônimos e famílias; falso negativo é possível (nome comercial desconhecido). O aviso é uma ajuda, não substitui a conferência humana; a conferência por lote/medicamento no registro (M5) repete a verificação.
+- **Prescrição ativa depois do fim:** o sistema mostra "vencida", mas só encerra por ação humana; os alertas de vencimento chegam em M6.
+- **Receita sem varredura de vírus** (só tipo e tamanho); o arquivo nunca é executado nem servido sem CSP `sandbox`.
+- **Duas prescrições do mesmo medicamento com doses diferentes** (ex.: manhã e noite) exigem hoje uma única prescrição com a mesma dose em todos os horários; esquema com doses diferentes por horário fica para depois do piloto.
+- Telas de idosos, prescrições e receitas ainda não existem (motor e API prontos).
+
 ## M1 Identidade e auditoria — concluído em 2026-10-25 (T07 a T16)
 
 ### O que foi construído
