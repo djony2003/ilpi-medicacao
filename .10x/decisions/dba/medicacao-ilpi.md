@@ -1,5 +1,32 @@
 # DBA — medicacao-ilpi
 
+## Estado em M1 (2026-10-25)
+
+### Tabelas (migrações 0002 e 0003), todas com RLS habilitado e forçado
+| Tabela | Política de isolamento | Observações |
+|---|---|---|
+| `casa` | `id = app_casa_id()` | `ativa` desliga a casa inteira |
+| `usuario` | `casa_id = app_casa_id()` + `busca_login` (SELECT por `app.login_email`) | e-mail em minúsculas e único no sistema (índice parcial); obrigatório exceto cuidador; enum `perfil_usuario`; contadores de falha e bloqueio na própria linha |
+| `dispositivo` | `casa_id = app_casa_id()` + `busca_por_chave` (SELECT por `app.dispositivo_hash` ou `app.ativacao_hash`) | só hashes de token e de código; código é apagado ao ativar |
+| `sessao` | `casa_id = app_casa_id()` + `busca_por_token` (SELECT por `app.sessao_hash`) | `token_hash` único; CHECK: tablet exige `dispositivo_id` |
+| `auditoria` | só `SELECT` e `INSERT` | ver abaixo |
+
+As políticas `busca_*` (ADR-002) só valem para `SELECT` e só liberam a linha cuja chave secreta (hash de 256 bits) coincide com a variável local da transação. A aplicação só as usa dentro de `comBusca`, que abre transação `READ ONLY`.
+
+### Auditoria
+- Hash encadeado POR CASA, calculado no gatilho `BEFORE INSERT` sob `pg_advisory_xact_lock(casa)`; `seq` atribuído sob o mesmo bloqueio (sem lacunas nem corrida). Campos codificados com tamanho na frente (sem ambiguidade `ab`+`c` × `a`+`bc`).
+- Quatro camadas: `REVOKE UPDATE` do `ilpi_app`; políticas só para SELECT e INSERT; gatilhos que recusam UPDATE, DELETE e TRUNCATE até para superusuário; verificação da cadeia por `auditoria_verificar()` (`inicio_ausente`, `lacuna`, `encadeamento_quebrado`, `conteudo_adulterado`).
+- Testado adulterando como superusuário com os gatilhos desligados: conteúdo alterado, linha do meio apagada, primeira linha apagada, linha reescrita sem corrigir a seguinte — todos detectados.
+- **Limite:** apagar as ÚLTIMAS linhas não quebra a cadeia; precisa de âncora externa (M8).
+
+### Índices
+`usuario(email)` único parcial, `usuario(casa_id)`, `dispositivo(casa_id)`, `dispositivo(codigo_ativacao_hash)` e `(token_hash)` únicos, `sessao(token_hash)` único, `sessao(usuario_id)`, `sessao(casa_id)`. Acompanhar o plano de execução quando a auditoria passar de milhões de linhas (índice por `casa_id, seq` já existe pela chave da cadeia).
+
+### Pendências
+- Rotina de limpeza de sessões vencidas.
+- Retenção e arquivamento da auditoria (definir com o jurídico).
+- Ancorar o hash mais recente fora do banco (M8).
+
 ## Estado em M0 (2026-10-25)
 
 ### Papéis

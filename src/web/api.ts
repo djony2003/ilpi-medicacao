@@ -5,6 +5,7 @@ import {
   ErroDePermissao,
   ErroDeReautenticacao,
   PERFIS,
+  exigirPermissao,
   POLITICA,
   ativarDispositivo,
   autenticarSessao,
@@ -29,6 +30,7 @@ import {
   trocarMeuPin,
   trocarMinhaSenha,
   verificarSegundoFator,
+  type Acao,
   type Rejeicao,
   type Servico,
   type SessaoAutenticada,
@@ -80,6 +82,11 @@ type Rota = {
   acesso: Acesso;
   /** Permitida mesmo quando a pessoa ainda precisa trocar a senha ou o PIN provisório. */
   permiteComTrocaPendente?: boolean;
+  /**
+   * Permissão exigida do perfil, conferida pelo despachante ANTES de ler o corpo. As funções do
+   * módulo conferem de novo (defesa em duas camadas). Toda rota /admin precisa declarar uma.
+   */
+  permissao?: Acao;
   tratar(ctx: Contexto): Promise<Response>;
 };
 
@@ -300,6 +307,7 @@ const ROTAS: Rota[] = [
     metodo: "GET",
     caminho: "/admin/usuarios",
     acesso: "sessao",
+    permissao: "usuarios.gerir",
     async tratar(ctx) {
       return json({ usuarios: await listarUsuarios(ctx.servico, sessaoDe(ctx)) });
     },
@@ -308,6 +316,7 @@ const ROTAS: Rota[] = [
     metodo: "POST",
     caminho: "/admin/usuarios",
     acesso: "sessao",
+    permissao: "usuarios.gerir",
     async tratar(ctx) {
       const entrada = await lerCorpo(
         ctx.request,
@@ -338,6 +347,7 @@ const ROTAS: Rota[] = [
     metodo: "POST",
     caminho: `/admin/usuarios/:id/${acao}`,
     acesso: "sessao",
+    permissao: "usuarios.gerir",
     async tratar(ctx) {
       return resposta(
         await funcao(ctx.servico, sessaoDe(ctx), { usuarioId: idDaRota(ctx), ip: ctx.ip }),
@@ -348,6 +358,7 @@ const ROTAS: Rota[] = [
     metodo: "POST",
     caminho: "/admin/usuarios/:id/redefinir-senha",
     acesso: "sessao",
+    permissao: "usuarios.gerir",
     async tratar(ctx) {
       const { novaSenha } = await lerCorpo(
         ctx.request,
@@ -366,6 +377,7 @@ const ROTAS: Rota[] = [
     metodo: "POST",
     caminho: "/admin/usuarios/:id/redefinir-pin",
     acesso: "sessao",
+    permissao: "usuarios.gerir",
     async tratar(ctx) {
       const { novoPin } = await lerCorpo(
         ctx.request,
@@ -384,6 +396,7 @@ const ROTAS: Rota[] = [
     metodo: "GET",
     caminho: "/admin/dispositivos",
     acesso: "sessao",
+    permissao: "dispositivos.gerir",
     async tratar(ctx) {
       return json({ dispositivos: await listarDispositivos(ctx.servico, sessaoDe(ctx)) });
     },
@@ -392,6 +405,7 @@ const ROTAS: Rota[] = [
     metodo: "POST",
     caminho: "/admin/dispositivos",
     acesso: "sessao",
+    permissao: "dispositivos.gerir",
     async tratar(ctx) {
       const { nome } = await lerCorpo(ctx.request, z.object({ nome: texto(200) }).strict());
       const r = await criarDispositivo(ctx.servico, sessaoDe(ctx), { nome, ip: ctx.ip });
@@ -405,6 +419,7 @@ const ROTAS: Rota[] = [
     metodo: "POST",
     caminho: "/admin/dispositivos/:id/revogar",
     acesso: "sessao",
+    permissao: "dispositivos.gerir",
     async tratar(ctx) {
       const revogado = await revogarDispositivo(ctx.servico, sessaoDe(ctx), {
         dispositivoId: idDaRota(ctx),
@@ -414,6 +429,28 @@ const ROTAS: Rota[] = [
     },
   },
 ];
+
+export type DescricaoDeRota = {
+  metodo: "GET" | "POST";
+  caminho: string;
+  acesso: Acesso;
+  permiteComTrocaPendente: boolean;
+  permissao: Acao | null;
+};
+
+/**
+ * Inventário das rotas, para os testes percorrerem TODAS automaticamente: toda rota nova entra
+ * na malha de testes de acesso e de isolamento entre casas sem ninguém precisar lembrar.
+ */
+export function listarRotas(): DescricaoDeRota[] {
+  return ROTAS.map((r) => ({
+    metodo: r.metodo,
+    caminho: r.caminho,
+    acesso: r.acesso,
+    permiteComTrocaPendente: r.permiteComTrocaPendente ?? false,
+    permissao: r.permissao ?? null,
+  }));
+}
 
 function casarCaminho(caminho: string, segmentos: string[]): Record<string, string> | null {
   const padrao = caminho.split("/").filter(Boolean);
@@ -518,6 +555,7 @@ export function criarApi(opcoes: OpcoesDaApi): (request: Request) => Promise<Res
           throw new ErroHttp(403, "troca_obrigatoria");
         }
         ctx.sessao = sessao;
+        if (rota.permissao) exigirPermissao(sessao.perfil, rota.permissao);
       }
 
       return finalizar(await rota.tratar(ctx));
