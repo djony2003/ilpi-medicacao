@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { chamar } from "./api";
+import { chamar } from "../_comum/api";
 import { TecladoPin } from "./teclado-pin";
 import type { Pessoa, PinDeOutraPessoa } from "./tipos";
 

@@ -124,3 +124,8 @@ Arquivos `db/migracoes/NNNN_nome.sql`, aplicados em ordem, cada um em uma transa
 - Decisões: alergia confirmada conscientemente ao prescrever avisa e não bloqueia; alergia nova bloqueia sempre, sem exceção. "Não administrada" dispensa a pulseira (paciente fora da casa); recusa e adiamento exigem. "Adiada" não é final e só vai até o limite maior contado do horário original. SOS só registra administração (com o sintoma), com limite em janela móvel de 24 h por grupo de versões. Registro tardio: reautenticação, motivo, até 7 dias, validade conferida na data da dose, prescrição valendo no momento da dose. Unidade do lote diferente da prescrita bloqueia (sem conversão).
 - Janela de tolerância configurável pelo gestor (`/admin/configuracoes/janela`), com reautenticação e auditoria.
 - Telas do tablet em `/tablet`; `npm run demo` e `npm run e2e:tablet`.
+
+## M6 — Alertas (concluído em 2026-10-26)
+- Migração `0009_alertas.sql`: `alerta` (chave da condição, um aberto por chave, só evolui, resolvido não reabre), `alerta_leitura`, `envio_alerta` (fila), novas tarefas do agendador.
+- Decisões: aviso de estoque = maior entre o limite e o prazo de reposição; dose atrasada (aviso) → sem registro (urgente, enfermagem) → gestão no fim do plantão (padrão 07:00 e 19:00) ou se não lida em 2 h; e-mail só para urgentes, salvo configuração; exceções: resumo de ontem (informativo) e 3 ou mais da mesma pessoa em 7 dias (urgente); SOS além do limite: aviso informativo a partir da trilha; permissão `alertas.ver` (enfermagem e gestão), também na tabela 7.1 da spec.
+- Painel `/painel` (com `/entrar`: senha, autenticador com QR no primeiro acesso, troca de senha provisória) e alertas no tablet para enfermagem e gestão.

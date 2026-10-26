@@ -1,8 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import "@fontsource/atkinson-hyperlegible/400.css";
-import "@fontsource/atkinson-hyperlegible/700.css";
-import "./tablet.css";
 
 export const metadata: Metadata = {
   title: "Tablet do posto | ILPI Medicação",

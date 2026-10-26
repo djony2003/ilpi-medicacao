@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { chamar } from "./api";
+import { ListaDeAlertas, useResumoDosAlertas } from "../_comum/alertas";
+import { chamar } from "../_comum/api";
 import { useConexao } from "./conexao";
 import { Escala } from "./escala";
-import { FUSO_PADRAO } from "./formato";
+import { FUSO_PADRAO } from "../_comum/formato";
 import { RegistroDaDose } from "./registro";
 import { prepararSom } from "./retorno";
 import { DoseSos } from "./sos";
@@ -25,7 +26,8 @@ type Tela =
   | { nome: "escala" }
   | { nome: "dose"; doseId: string }
   | { nome: "tardio"; doseId: string }
-  | { nome: "sos" };
+  | { nome: "sos" }
+  | { nome: "alertas" };
 
 const INATIVIDADE_MS = 2 * 60_000;
 
@@ -36,6 +38,9 @@ export default function Tablet() {
   const [fuso, setFuso] = useState(FUSO_PADRAO);
   const [ocupado, setOcupado] = useState(false);
   const online = useConexao();
+  // Alertas: enfermagem e gestão (o cuidador vê a situação das doses na própria escala).
+  const veAlertas = eu !== null && eu.perfil !== "cuidador";
+  const alertas = useResumoDosAlertas(veAlertas);
   const ultimoToque = useRef(0);
 
   const irParaLista = useCallback(async () => {
@@ -182,6 +187,25 @@ export default function Tablet() {
         <span className="barra__marca">ILPI Medicação</span>
         {eu && <span className="barra__pessoa">{eu.nome}</span>}
         <span className="barra__acoes">
+          {veAlertas && (
+            <button
+              type="button"
+              className="botao botao--discreto"
+              onClick={() => setTela({ nome: "alertas" })}
+              aria-label={`Alertas: ${alertas.resumo?.naoLidosPorMim ?? 0} não lidos`}
+            >
+              Alertas
+              {(alertas.resumo?.naoLidosPorMim ?? 0) > 0 && (
+                <span
+                  className={
+                    (alertas.resumo?.urgentes ?? 0) > 0 ? "contador contador--urgente" : "contador"
+                  }
+                >
+                  {alertas.resumo?.naoLidosPorMim}
+                </span>
+              )}
+            </button>
+          )}
           <button type="button" className="botao botao--discreto" onClick={telaCheia}>
             Tela cheia
           </button>
@@ -290,6 +314,19 @@ export default function Tablet() {
             aoVoltar={() => setTela({ nome: "escala" })}
             aoPerderSessao={perdeuSessao}
           />
+        )}
+
+        {tela.nome === "alertas" && veAlertas && (
+          <>
+            <button
+              type="button"
+              className="botao botao--discreto"
+              onClick={() => setTela({ nome: "escala" })}
+            >
+              ← Escala
+            </button>
+            <ListaDeAlertas fuso={fuso} aoPerderSessao={perdeuSessao} aoMudar={alertas.atualizar} />
+          </>
         )}
 
         {tela.nome === "sos" && eu && (

@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { chamar, novaChave } from "./api";
+import { chamar, novaChave } from "../_comum/api";
 import { EscolhaDeMotivo, Faixa } from "./comum";
 import { ConfirmarPessoa } from "./confirmar-pessoa";
-import { hora, numero, quantidade } from "./formato";
+import { hora, numero, quantidade } from "../_comum/formato";
 import { LeitorQr } from "./leitor-qr";
 import { sinalDeBloqueio, sinalDeConcluido, sinalDeLeitura } from "./retorno";
 import type { Bloqueio, PinDeOutraPessoa, SosDoIdoso } from "./tipos";

@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de medicação para casas de idosos (ILPI)
 **Feature atual:** medicacao-ilpi (V1)
-**Fase atual:** Fase 4 — Implementação. M5 concluído; **ponto de decisão com o usuário (demonstração do registro com QR)** antes de M6
+**Fase atual:** Fase 4 — Implementação. M6 concluído; próximo: M7 (gestão e auditoria)
 **Atualizado em:** 2026-10-26
 
 ## Fases
@@ -12,7 +12,7 @@
 | 1. Estratégia | Concluída |
 | 2. Design | Concluída. ADR-001 aceito |
 | 3. Planejamento | Concluída. 62 tarefas em 9 marcos |
-| 4. Implementação | Em andamento. M0 a M5 concluídos (T01 a T46). Próxima tarefa: T47 (após a demonstração) |
+| 4. Implementação | Em andamento. M0 a M6 concluídos (T01 a T52). Próxima tarefa: T53 |
 | 5. Verificação | Não iniciada |
 | 6. Entrega | Não iniciada |
 
@@ -26,10 +26,13 @@ Plano completo: `.10x/decisions/engineering-manager/medicacao-ilpi.md`
 | M2 Idosos e prescrições | T17 a T23 | **Concluído** |
 | M3 Escala de doses | T24 a T28 | **Concluído** (usuário optou por seguir sem validação prévia) |
 | M4 Estoque | T29 a T34 | **Concluído** |
-| M5 Administração | T35 a T46 | **Concluído** (demonstração com o usuário) |
-| M6 Alertas | T47 a T52 | Pendente |
+| M5 Administração | T35 a T46 | **Concluído** (usuário seguiu; testes em tablet real depois) |
+| M6 Alertas | T47 a T52 | **Concluído** |
 | M7 Gestão e auditoria | T53 a T56 | Pendente |
 | M8 Verificação e prontidão | T57 a T62 | Pendente |
+
+## Qualidade em M6
+802 testes passando (45 arquivos), tipos, lint, formatação e build limpos, `npm audit` sem vulnerabilidades (nodemailer na versão 10, sem as falhas das antigas). Doze testes de mutação detectados (informativo, silêncio após tratado, escalonamento e reaviso só sem leitura, e-mail de aviso, prazo de reposição, fim do plantão, janela, dose registrada, descarte de e-mail, e-mail sem dado clínico, fechamento por leitura). Malha de vazamento com alerta canário da casa B. Ponta a ponta no Chromium: `npm run e2e:painel` (entrada com autenticador, troca de senha, painel, ler, encerrar, tablet da enfermeira) e `npm run e2e:tablet`.
 
 ## Qualidade em M5
 760 testes passando (41 arquivos, PostgreSQL real), tipos, lint, formatação e build limpos, `npm audit` sem vulnerabilidades. Treze testes de mutação detectados (alergia, paciente errado, lote de outro paciente, lote vencido, motivo fora da janela, idempotência, segunda validação, quem libera, validador igual, limite SOS, reautenticação do tardio, validade na data da dose, perfil na confirmação). Concorrência testada: seis leituras simultâneas da mesma dose geram um registro; duas doses disputando a última unidade, uma baixa. Telas do tablet testadas de ponta a ponta no Chromium com câmera simulada (`npm run e2e:tablet`, 16 telas); o teste revelou e corrigiu um laço de releitura do QR recusado. **Falta testar num tablet real** (câmera, som, vibração, quiosque).

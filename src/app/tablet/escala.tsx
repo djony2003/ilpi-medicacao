@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { chamar } from "./api";
-import { hora, quantidade } from "./formato";
+import { chamar } from "../_comum/api";
+import { hora, quantidade } from "../_comum/formato";
 import type { DoseDaEscala, EscalaDoPlantao } from "./tipos";
 
 // Escala do plantão (spec 5.1): o que precisa de atenção no topo (sem registro, atrasadas, na

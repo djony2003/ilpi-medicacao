@@ -5,6 +5,7 @@ import { hash } from "@node-rs/argon2";
 import pg from "pg";
 import { comContexto } from "@/compartilhado/banco/transacao";
 import { gerarDosesDaCasa } from "@/modules/administracao";
+import { verificarAlertasDaCasa } from "@/modules/alertas";
 import { emitirEtiqueta, gerarPdfDaEtiqueta, registrarEntrada } from "@/modules/estoque";
 import { criarDispositivo, criarUsuario, type SessaoAutenticada } from "@/modules/identidade";
 import {
@@ -81,6 +82,9 @@ const gestora: SessaoAutenticada = {
 };
 
 // ------------------------------------------------------------------ equipe e tablet
+// Senha provisória da enfermeira no computador: no primeiro acesso ela configura o autenticador
+// e troca a senha.
+const SENHA_PROVISORIA = "provisoria-da-demonstracao";
 const PINS = { cuidadora: "731946", colega: "582417", enfermeira: "264839" };
 const ana = exigir(
   await criarUsuario(servico, gestora, {
@@ -103,7 +107,7 @@ const carla = exigir(
     nome: "Carla (enfermeira)",
     perfil: "enfermeiro",
     email: `carla-${gestorId.slice(0, 8)}@demo.test`,
-    senhaInicial: `demo-${randomUUID()}`,
+    senhaInicial: SENHA_PROVISORIA,
     pinInicial: PINS.enfermeira,
   }),
   "enfermeira",
@@ -141,6 +145,7 @@ async function remedio(
   principioAtivo: string,
   concentracao: string,
   altoRisco = false,
+  lote: { quantidade?: number; validade?: string } = {},
 ) {
   const m = exigir(
     await cadastrarMedicamento(servico, enfermeira, {
@@ -156,9 +161,9 @@ async function remedio(
     await registrarEntrada(servico, enfermeira, {
       medicamentoId: m.medicamentoId,
       numeroLote: `D${Math.floor(1000 + Math.random() * 9000)}`,
-      validade: "2027-12-31",
+      validade: lote.validade ?? "2027-12-31",
       unidade: "comprimido",
-      quantidade: 30,
+      quantidade: lote.quantidade ?? 30,
     }),
     `lote de ${nomeComercial}`,
   );
@@ -194,9 +199,14 @@ const celina = await residente("Celina Prado", "15");
 
 const losartana = await remedio("Losartana", "Losartana potássica", "50 mg");
 const metformina = await remedio("Metformina", "Cloridrato de metformina", "850 mg");
-const varfarina = await remedio("Varfarina", "Varfarina sódica", "5 mg", true);
+// Varfarina com 2 comprimidos: o estoque acaba em 2 dias (alerta urgente).
+const varfarina = await remedio("Varfarina", "Varfarina sódica", "5 mg", true, { quantidade: 2 });
 const amoxicilina = await remedio("Amoxicilina", "Amoxicilina", "500 mg");
 const paracetamol = await remedio("Paracetamol", "Paracetamol", "500 mg");
+// Um lote que vence em 20 dias (alerta de validade, aviso).
+await remedio("Dipirona", "Dipirona sódica", "500 mg", false, {
+  validade: new Date(Date.now() + 20 * 86_400_000).toISOString().slice(0, 10),
+});
 
 await regular(aparecida, losartana, horaDaquiA(5));
 await regular(benedito, metformina, horaDaquiA(10));
@@ -228,6 +238,7 @@ exigir(
   "alergia",
 );
 await gerarDosesDaCasa(servico, casaId);
+const alertas = await verificarAlertasDaCasa(servico, casaId);
 
 for (const [id, arquivo] of [
   [aparecida, "aparecida"],
@@ -252,6 +263,11 @@ Equipe (PIN):
 Doses de hoje: Aparecida (Losartana ${horaDaquiA(5)}), Benedito (Metformina ${horaDaquiA(10)},
 Varfarina ${horaDaquiA(15)}, alto risco), Celina (Amoxicilina ${horaDaquiA(20)}: bloqueia por alergia
 a Penicilina). SOS: Paracetamol para Aparecida.
+
+Computador (/entrar): ${`carla-${gestorId.slice(0, 8)}@demo.test`}, senha provisória ${SENHA_PROVISORIA}
+  No primeiro acesso: configurar o autenticador e trocar a senha.
+
+Alertas abertos: ${alertas.abertos} (estoque baixo da Varfarina, validade da Dipirona).
 
 PDFs das pulseiras e etiquetas em ${PASTA}
 `);

@@ -1,6 +1,6 @@
 "use client";
 
-import { dataCurta, hora, quantidade, via } from "./formato";
+import { dataCurta, hora, quantidade, via } from "../_comum/formato";
 import type { Bloqueio, ConferenciaDaDose } from "./tipos";
 
 // Peças visuais repetidas no registro: a faixa de conferência, o cartão do paciente, os passos e

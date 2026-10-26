@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { chamar } from "./api";
+import { chamar } from "../_comum/api";
 
 // Estado da conexão (spec 5.8 e T46). O navegador avisa quando perde a rede, mas "conectado ao
 // Wi-Fi" não é "o servidor responde": por isso também há uma batida leve a cada 15 segundos.

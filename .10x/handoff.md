@@ -1,13 +1,13 @@
 # Handoff
 
-**De:** Implementação, marco M5 concluído
-**Para:** Demonstração do registro com QR ao usuário; depois, M6 (alertas)
+**De:** Implementação, marco M6 concluído
+**Para:** M7 (gestão e auditoria)
 **Data:** 2026-10-26
 
 ## Onde estamos
-Código em `/home/claude/ilpi` (repositório git próprio, com o histórico do `.10x`; remoto privado `djony2003/ilpi-medicacao`). M0 a M3 prontos: fundação, identidade (login com senha e TOTP, PIN no tablet aprovado, sessões, permissões, gestão de usuários), auditoria encadeada, API HTTP com malha de vazamento, idosos com pulseira QR e PDF, prescrições versionadas com receita cifrada, escala de doses (geração idempotente com fuso e horário de verão, agendador, escala do plantão e folha de contingência em PDF) estoque (lotes com etiqueta QR, fracionamento para o idoso, saídas com reautenticação, previsão de término, lista de reposição em PDF, sobras e inventário com ajustes justificados) e administração (registro com conferência por QR, exceção, segunda validação, SOS, registro tardio) com as telas do tablet em `/tablet`.
+Código em `/home/claude/ilpi` (repositório git próprio, com o histórico do `.10x`; remoto privado `djony2003/ilpi-medicacao`). M0 a M3 prontos: fundação, identidade (login com senha e TOTP, PIN no tablet aprovado, sessões, permissões, gestão de usuários), auditoria encadeada, API HTTP com malha de vazamento, idosos com pulseira QR e PDF, prescrições versionadas com receita cifrada, escala de doses (geração idempotente com fuso e horário de verão, agendador, escala do plantão e folha de contingência em PDF) estoque (lotes com etiqueta QR, fracionamento para o idoso, saídas com reautenticação, previsão de término, lista de reposição em PDF, sobras e inventário com ajustes justificados) e administração (registro com conferência por QR, exceção, segunda validação, SOS, registro tardio) com as telas do tablet em `/tablet`, e alertas (verificação a cada 5 minutos pelo agendador, painel em `/painel` com entrada em `/entrar`, e-mail sem dados de saúde).
 
-Demonstração: `npm run demo` cria uma casa com equipe, tablet, residentes, remédios e doses para os próximos minutos, e grava os PDFs de pulseiras e etiquetas em `./demo`. `npm run e2e:tablet` (com o servidor no ar) percorre as telas num Chromium com câmera simulada. Detalhes em `.10x/decisions/sde/medicacao-ilpi.md` e `.10x/decisions/dba/medicacao-ilpi.md`; decisões em `.10x/adrs/` (001 monólito modular com RLS, 002 busca por chave secreta sob RLS).
+Demonstração: `npm run demo` cria uma casa com equipe, tablet, residentes, remédios e doses para os próximos minutos, e grava os PDFs de pulseiras e etiquetas em `./demo`. `npm run e2e:tablet` e `npm run e2e:painel` (com o servidor no ar) percorrem as telas num Chromium (câmera simulada no tablet; autenticador calculado no painel). Detalhes em `.10x/decisions/sde/medicacao-ilpi.md` e `.10x/decisions/dba/medicacao-ilpi.md`; decisões em `.10x/adrs/` (001 monólito modular com RLS, 002 busca por chave secreta sob RLS).
 
 Para rodar: `docker compose up -d` (ou um PostgreSQL 16 local), `cp .env.example .env`, `npm install`, `npm run db:setup && npm run db:migrar`, `npm run verificar`.
 
@@ -51,11 +51,18 @@ Para rodar: `docker compose up -d` (ou um PostgreSQL 16 local), `cp .env.example
 - **Bloqueio é dado, não erro:** `conferencia_bloqueada` com a lista de bloqueios (mensagem e ação da tabela 5.4) e auditoria `administracao.bloqueada` (quase-erro).
 - **Telas (`src/app/tablet`):** cliente puro, só `import type` do servidor; leitor de QR com `BarcodeDetector` e reserva no jsQR, câmera contínua com pausa durante a conferência e descarte do código recém-recusado ou já aceito. Batida de conexão numa rota do APARELHO (`/tablet/usuarios`), para não renovar a sessão.
 
+## Padrões que M6 acrescentou
+- **Alerta é condição, não evento:** chave estável (`dose_sem_registro:<id>`, `estoque:<reserva>`, `validade:<lote>`...), um aberto por chave (índice parcial). `reconciliar` (puro) decide abrir, agravar, abrandar, fechar, reavisar e escalar; a camada de dados só aplica. Tipo nunca muda: piorar de tipo (atrasada → sem registro) fecha um e abre outro.
+- **Informativos** (`excecoes_do_dia`, `sos_bloqueado`) fecham ao serem lidos, não ao sumir. Fechado à mão ou lido não reabre por 7 dias, salvo se piorar.
+- **E-mail:** fila `envio_alerta`, endereço lido na hora, texto de `montarEmail` (nunca recebe título nem dado clínico). Só urgentes, agravamentos e escalonamentos, salvo `emailParaAvisos`. Novas tentativas 1, 5, 15, 60 e 180 min; `SKIP LOCKED`. Sem `SMTP_URL`, os e-mails esperam na fila.
+- **Agendador:** a cada 5 minutos; por casa, trava consultiva (`pg_try_advisory_xact_lock`) na verificação.
+- **Telas comuns** em `src/app/_comum` (API, formatação, `interface.css`, `ListaDeAlertas`). Rotas de sessão consultadas periodicamente renovam a sessão: no tablet, quem garante a saída por inatividade é o relógio da própria tela.
+
 ## Próximas tarefas
-Demonstração do registro com QR ao usuário (ponto de decisão). Depois, M6 (T47 a T52): alertas (dose sem registro avisa o enfermeiro, SOS bloqueado, estoque baixo, vencimento). Pendências do M5: testar num tablet real (câmera, som, vibração, quiosque, `BarcodeDetector`); exceção de conferência para SOS só pela API (a tela não oferece); conversão de unidade continua bloqueando (mg x comprimido); média SOS real na previsão de estoque; telas web de gestão (cadastros, estoque, relatório de exceções) ainda não existem.
+M7 (T53 a T56): auditoria com filtros e exportação, relatório de exceções e as telas de gestão. Pendências do M5: testar num tablet real (câmera, som, vibração, quiosque, `BarcodeDetector`); exceção de conferência para SOS só pela API (a tela não oferece); conversão de unidade continua bloqueando (mg x comprimido); média SOS real na previsão de estoque; telas web de gestão (cadastros, estoque, relatório de exceções) ainda não existem.
 
 ## Limitações herdadas (não esquecer)
 Armazenamento de receitas em disco local e chave única (M8); alergia conferida por nome, com tabela curta de sinônimos; sem limite de tentativas por IP; IP de `X-Forwarded-For` serve só de rastro; PIN errado trava também o login web da mesma pessoa; e-mail único no sistema; sessões vencidas não são apagadas; auditoria sem âncora externa; telas ainda não existem. Lista completa em `decisions/sde`.
 
 ## Pontos de decisão com o usuário
-**Agora (após M5): demonstração do registro com QR.** Antes de M8, a casa-piloto e fornecedores).
+Demonstração do registro com QR: adiada pelo usuário (testar num tablet real depois). Antes de M8, a casa-piloto e fornecedores).

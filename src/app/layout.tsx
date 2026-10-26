@@ -1,4 +1,7 @@
 import type { ReactNode } from "react";
+import "@fontsource/atkinson-hyperlegible/400.css";
+import "@fontsource/atkinson-hyperlegible/700.css";
+import "./_comum/interface.css";
 
 export const metadata = {
   title: "ILPI Medicação",
