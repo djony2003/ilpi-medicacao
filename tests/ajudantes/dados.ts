@@ -40,7 +40,13 @@ export async function criarUsuario(
   const id = randomUUID();
   const nome = opcoes.nome ?? `Usuário ${id.slice(0, 6)}`;
   const email = opcoes.perfil === "cuidador" ? null : `u-${id}@exemplo.test`;
-  const senha = opcoes.senha === undefined ? SENHA_PADRAO : opcoes.senha;
+  // Cuidador entra só por PIN; os demais perfis nascem com a senha padrão de teste.
+  const senha =
+    opcoes.senha === undefined
+      ? opcoes.perfil === "cuidador"
+        ? null
+        : SENHA_PADRAO
+      : opcoes.senha;
   const senhaHash = senha === null ? null : await hash(senha);
   const pinHash = opcoes.pin ? await hash(opcoes.pin) : null;
 

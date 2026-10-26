@@ -16,6 +16,19 @@ const esquema = z
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     DATABASE_URL: urlPostgres,
     LOG_NIVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+    // Origem pública do site (esquema + domínio, sem barra no fim), usada na defesa contra CSRF
+    // quando a aplicação roda atrás de um proxy. Ex.: https://app.casa.exemplo
+    APP_ORIGEM: z
+      .string()
+      .optional()
+      .refine((v) => {
+        if (!v) return true;
+        try {
+          return new URL(v).origin === v;
+        } catch {
+          return false;
+        }
+      }, "deve ser só a origem, como https://app.casa.exemplo (sem caminho nem barra no fim)"),
     // Chave de 32 bytes em base64 para criptografar campos sensíveis (ex.: segredo do TOTP).
     CHAVE_CAMPOS: z
       .string()

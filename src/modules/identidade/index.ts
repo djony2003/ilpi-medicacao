@@ -18,7 +18,40 @@ export {
   type ResultadoDaSenha,
   type ResultadoDoSegundoFator,
 } from "./dados/login";
+export {
+  ativarDispositivo,
+  criarDispositivo,
+  listarDispositivos,
+  localizarDispositivo,
+  revogarDispositivo,
+  type CodigoDeAtivacao,
+  type DispositivoAtivo,
+  type ResultadoDaAtivacao,
+  type ResumoDeDispositivo,
+} from "./dados/dispositivo";
 export { hashSenha, verificarSenhaHash } from "./dados/hash-senha";
+export {
+  entrarComPin,
+  listarUsuariosParaPin,
+  type ResultadoDoPin,
+  type UsuarioDaLista,
+} from "./dados/login-pin";
+export { reautenticar } from "./dados/reautenticar";
+export {
+  criarUsuario,
+  desativarUsuario,
+  desbloquearUsuario,
+  listarUsuarios,
+  reativarUsuario,
+  redefinirPin,
+  redefinirSegundoFator,
+  redefinirSenha,
+  trocarMeuPin,
+  trocarMinhaSenha,
+  type NovoUsuario,
+  type Rejeicao,
+  type ResumoDeUsuario,
+} from "./dados/usuarios";
 export { type Servico } from "./dados/servico";
 export {
   autenticarSessao,
@@ -29,6 +62,11 @@ export {
   type SessaoAutenticada,
 } from "./dados/sessao";
 export { POLITICA } from "./dominio/politica";
+export {
+  ErroDeReautenticacao,
+  exigirReautenticacaoRecente,
+  reautenticadoRecentemente,
+} from "./dominio/reautenticacao";
 export { TAMANHO_PIN, validarPin } from "./dominio/pin";
 export {
   TAMANHO_MAXIMO_SENHA,

@@ -68,6 +68,7 @@ export type SessaoAutenticada = {
   dispositivoId: string | null;
   senhaTrocar: boolean;
   /** Quando a pessoa digitou a senha de novo pela última vez, para ações sensíveis. */
+  pinTrocar: boolean;
   reautenticadoEm: Date | null;
 };
 
@@ -122,20 +123,25 @@ export async function autenticarSessao(
         perfil: Perfil;
         usuario_ativo: boolean;
         senha_trocar: boolean;
+        pin_trocar: boolean;
         casa_ativa: boolean;
+        dispositivo_revogado_em: Date | null;
       }>(
         `SELECT s.id, s.tipo, s.dispositivo_id, s.mfa_ok, s.ultimo_uso_em, s.expira_em,
                 s.inatividade_segundos, s.revogada_em, s.reautenticado_em,
-                u.perfil, u.ativo AS usuario_ativo, u.senha_trocar, k.ativa AS casa_ativa
+                u.perfil, u.ativo AS usuario_ativo, u.senha_trocar, u.pin_trocar,
+                k.ativa AS casa_ativa, d.revogado_em AS dispositivo_revogado_em
            FROM sessao s
            JOIN usuario u ON u.id = s.usuario_id
            JOIN casa k ON k.id = s.casa_id
+           LEFT JOIN dispositivo d ON d.id = s.dispositivo_id
           WHERE s.id = $1
           FOR UPDATE OF s`,
         [achada.id],
       );
       const s = r.rows[0];
       if (!s || s.revogada_em || !s.mfa_ok || !s.usuario_ativo || !s.casa_ativa) return null;
+      if (s.dispositivo_revogado_em) return null;
 
       const venceuPorTempo = s.expira_em.getTime() <= agora.getTime();
       const venceuPorInatividade =
@@ -154,6 +160,7 @@ export async function autenticarSessao(
         tipo: s.tipo,
         dispositivoId: s.dispositivo_id,
         senhaTrocar: s.senha_trocar,
+        pinTrocar: s.pin_trocar,
         reautenticadoEm: s.reautenticado_em,
       };
     },

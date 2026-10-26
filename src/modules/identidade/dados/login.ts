@@ -7,8 +7,14 @@ import { POLITICA } from "../dominio/politica";
 import { TAMANHO_MAXIMO_SENHA } from "../dominio/senha";
 import { gerarSegredoTotp, montarUriTotp, verificarCodigo } from "../dominio/totp";
 import { gastarTempoDeVerificacao, verificarSenhaHash } from "./hash-senha";
-import { criarSessao, localizarSessao, revogarSessoesDoUsuario } from "./sessao";
+import { criarSessao, localizarSessao } from "./sessao";
 import { relogio, type Servico } from "./servico";
+import {
+  carregarUsuarioTravado,
+  estaBloqueado,
+  registrarFalha,
+  type UsuarioParaLogin,
+} from "./tentativas";
 
 // Login de gestor e enfermeiro na web: senha, depois segundo fator (aplicativo autenticador).
 //
@@ -36,87 +42,8 @@ export type ResultadoDaSenha =
 export type ResultadoDoSegundoFator =
   { ok: true; token: string; senhaTrocar: boolean } | typeof NEGADO;
 
-type UsuarioParaLogin = {
-  id: string;
-  perfil: "gestor" | "enfermeiro" | "cuidador";
-  email: string | null;
-  senha_hash: string | null;
-  senha_trocar: boolean;
-  ativo: boolean;
-  totp_ativo: boolean;
-  totp_segredo_cifrado: string | null;
-  totp_ultimo_passo: string | null;
-  tentativas_falhas: number;
-  bloqueado_ate: Date | null;
-  casa_ativa: boolean;
-};
-
-async function carregarUsuarioTravado(
-  c: PoolClient,
-  usuarioId: string,
-): Promise<UsuarioParaLogin | null> {
-  const r = await c.query<UsuarioParaLogin>(
-    `SELECT u.id, u.perfil, u.email, u.senha_hash, u.senha_trocar, u.ativo, u.totp_ativo,
-            u.totp_segredo_cifrado, u.totp_ultimo_passo::text AS totp_ultimo_passo,
-            u.tentativas_falhas, u.bloqueado_ate, k.ativa AS casa_ativa
-       FROM usuario u
-       JOIN casa k ON k.id = u.casa_id
-      WHERE u.id = $1
-      FOR UPDATE OF u`,
-    [usuarioId],
-  );
-  return r.rows[0] ?? null;
-}
-
 function podeEntrar(u: UsuarioParaLogin | null): u is UsuarioParaLogin {
   return u !== null && u.ativo && u.casa_ativa && u.perfil !== "cuidador";
-}
-
-/**
- * Soma uma falha. Ao atingir o limite, bloqueia a conta por um período e encerra as sessões
- * abertas dela. Devolve true se esta falha causou o bloqueio.
- */
-async function registrarFalha(
-  c: PoolClient,
-  u: UsuarioParaLogin,
-  agora: Date,
-  acao: "login.falha" | "login.mfa_falha",
-  ip: string | null | undefined,
-): Promise<boolean> {
-  const falhas = u.tentativas_falhas + 1;
-  const bloqueia = falhas >= POLITICA.maximoDeFalhas;
-
-  if (bloqueia) {
-    await c.query("UPDATE usuario SET tentativas_falhas = 0, bloqueado_ate = $2 WHERE id = $1", [
-      u.id,
-      new Date(agora.getTime() + POLITICA.bloqueioMs),
-    ]);
-    await revogarSessoesDoUsuario(c, u.id, agora);
-  } else {
-    await c.query("UPDATE usuario SET tentativas_falhas = $2 WHERE id = $1", [u.id, falhas]);
-  }
-
-  await registrarAuditoria(c, {
-    acao,
-    entidade: "usuario",
-    entidadeId: u.id,
-    depois: { tentativas: falhas },
-    ip,
-  });
-  if (bloqueia) {
-    await registrarAuditoria(c, {
-      acao: "login.conta_bloqueada",
-      entidade: "usuario",
-      entidadeId: u.id,
-      depois: { bloqueioMinutos: POLITICA.bloqueioMs / 60_000 },
-      ip,
-    });
-  }
-  return bloqueia;
-}
-
-function estaBloqueado(u: UsuarioParaLogin, agora: Date): boolean {
-  return u.bloqueado_ate !== null && u.bloqueado_ate.getTime() > agora.getTime();
 }
 
 /** Etapa 1: e-mail e senha. Se der certo, abre uma sessão incompleta (sem acesso a nada). */
@@ -182,7 +109,7 @@ export async function entrar(
       }
 
       if (!(await verificarSenhaHash(u.senha_hash, senha))) {
-        await registrarFalha(c, u, agora, "login.falha", ip);
+        await registrarFalha(c, u, agora, "login.falha", { ip });
         return NEGADO;
       }
 
@@ -314,7 +241,7 @@ export async function verificarSegundoFator(
         ultimoPasso: u.totp_ultimo_passo === null ? null : Number(u.totp_ultimo_passo),
       });
       if (passo === null) {
-        await registrarFalha(c, u, agora, "login.mfa_falha", ip);
+        await registrarFalha(c, u, agora, "login.mfa_falha", { ip });
         return NEGADO;
       }
 
@@ -376,7 +303,7 @@ export async function confirmarConfiguracaoTotp(
     const segredo = decifrar(u.totp_segredo_cifrado, servico.chaveCampos);
     const passo = verificarCodigo(segredo, codigo, agora.getTime());
     if (passo === null) {
-      await registrarFalha(c, u, agora, "login.mfa_falha", ip);
+      await registrarFalha(c, u, agora, "login.mfa_falha", { ip });
       return NEGADO;
     }
 
