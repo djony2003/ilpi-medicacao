@@ -40,6 +40,15 @@ export type DoseDaEscala = {
   estado: EstadoDaDose;
   /** Minutos de atraso (positivo) ou de antecedência (negativo) em relação ao horário. */
   minutosDesdeOHorario: number;
+  /** Se a dose foi adiada, o novo horário (é ele que vale para a janela). */
+  adiadaPara: string | null;
+  /** O resultado final, quando já registrado. */
+  registro: {
+    resultado: "administrada" | "recusada" | "nao_administrada";
+    usuarioNome: string;
+    ocorridaEm: string;
+    tardio: boolean;
+  } | null;
 };
 
 export type EscalaDoPlantao = {
@@ -135,10 +144,45 @@ async function carregar(
     }
   }
 
+  // Registros já feitos: o resultado final e o último adiamento de cada dose.
+  const finais = new Map<string, NonNullable<DoseDaEscala["registro"]>>();
+  const adiamentos = new Map<string, Date>();
+  if (linhas.length > 0) {
+    const a = await c.query<{
+      dose_agendada_id: string;
+      resultado: "administrada" | "recusada" | "nao_administrada" | "adiada";
+      adiada_para: Date | null;
+      usuario_nome: string;
+      ocorrida_em: Date;
+      metodo: string;
+    }>(
+      `SELECT a.dose_agendada_id, a.resultado, a.adiada_para, u.nome AS usuario_nome,
+              a.ocorrida_em, a.metodo
+         FROM administracao a
+         JOIN usuario u ON u.id = a.usuario_id
+        WHERE a.dose_agendada_id = ANY($1::uuid[])
+        ORDER BY a.seq`,
+      [linhas.map((l) => l.id)],
+    );
+    for (const r of a.rows) {
+      if (r.resultado === "adiada") {
+        if (r.adiada_para) adiamentos.set(r.dose_agendada_id, r.adiada_para);
+      } else {
+        finais.set(r.dose_agendada_id, {
+          resultado: r.resultado,
+          usuarioNome: r.usuario_nome,
+          ocorridaEm: r.ocorrida_em.toISOString(),
+          tardio: r.metodo === "tardio",
+        });
+      }
+    }
+  }
+
   const doses = linhas.map((l): DoseDaEscala => {
-    // Registro de administração entra no M5: até lá nenhuma dose consta como feita.
+    const referencia = adiamentos.get(l.id) ?? l.prevista_em;
+    const registro = finais.get(l.id) ?? null;
     const estado = estadoDaDose(
-      { previstaEm: l.prevista_em, cancelada: false, registrada: false },
+      { previstaEm: referencia, cancelada: false, registrada: registro !== null },
       agora,
       janela,
     );
@@ -162,7 +206,9 @@ async function carregar(
       horaLocal: l.hora_local,
       previstaEm: l.prevista_em.toISOString(),
       estado,
-      minutosDesdeOHorario: minutosDesde(l.prevista_em, agora),
+      minutosDesdeOHorario: minutosDesde(referencia, agora),
+      adiadaPara: adiamentos.get(l.id)?.toISOString() ?? null,
+      registro,
     };
   });
 

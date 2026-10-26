@@ -49,7 +49,11 @@ export function estaBloqueado(u: UsuarioParaLogin, agora: Date): boolean {
 }
 
 export type AcaoDeFalha =
-  "login.falha" | "login.mfa_falha" | "login.pin_falha" | "reautenticacao.falha";
+  | "login.falha"
+  | "login.mfa_falha"
+  | "login.pin_falha"
+  | "reautenticacao.falha"
+  | "confirmacao.pin_falha";
 
 /**
  * Soma uma falha. Ao atingir o limite, bloqueia a conta por um período e encerra as sessões

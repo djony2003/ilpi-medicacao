@@ -39,6 +39,14 @@ export {
   type SobraDeEstoque,
 } from "./dados/situacao";
 export { ehSaldoInsuficiente } from "./dados/saldo";
+export {
+  consumirParaAdministracao,
+  lerLote,
+  loteParaConferencia,
+  lotesParaUso,
+  type LeituraDeLote,
+  type LoteNaConferencia,
+} from "./dados/consumo";
 export { gerarPdfDaEtiqueta, type DadosParaEtiqueta } from "./dominio/etiqueta-pdf";
 export {
   HORIZONTE_PADRAO_DIAS,

@@ -107,3 +107,9 @@ export function instanteLocal(data: string, hora: string, fuso: string): Date {
   }
   return new Date(alto);
 }
+
+/** Hora de parede (HH:MM) que o relógio do fuso mostra naquele instante. */
+export function horaLocalDe(instante: Date, fuso: string): string {
+  const p = partesNoFuso(instante.getTime(), fuso);
+  return `${String(p.hora).padStart(2, "0")}:${String(p.minuto).padStart(2, "0")}`;
+}

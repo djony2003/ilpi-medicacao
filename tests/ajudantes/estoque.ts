@@ -1,5 +1,6 @@
 import type pg from "pg";
 import { comContexto } from "@/compartilhado/banco/transacao";
+import { gerarCodigoOpaco } from "@/compartilhado/tokens";
 import { registrarEntrada, type EntradaDeLote } from "@/modules/estoque";
 import type { Servico, SessaoAutenticada } from "@/modules/identidade";
 import { cadastrarIdoso } from "@/modules/idosos";
@@ -134,7 +135,12 @@ export async function acoesDeAuditoria(
   });
 }
 
-/** Registra um consumo como o M5 fará: movimento negativo ligado a uma administração. */
+/**
+ * Registra um consumo de estoque como uma administração de verdade, sem passar pela conferência
+ * (os testes de estoque querem só o efeito no saldo). Cria, se preciso, um residente desligado e
+ * uma prescrição SOS já encerrada para o medicamento do lote: nenhum dos dois aparece na demanda
+ * de estoque, então as previsões dos testes não mudam.
+ */
 export async function consumirDoLote(
   app: pg.Pool,
   casaId: string,
@@ -142,11 +148,44 @@ export async function consumirDoLote(
   loteId: string,
   quantidade: number,
 ): Promise<void> {
-  await comContexto(app, { casaId, usuarioId }, (c) =>
-    c.query(
+  await comContexto(app, { casaId, usuarioId }, async (c) => {
+    const l = await c.query<{ medicamento_id: string; idoso_id: string | null; unidade: string }>(
+      "SELECT medicamento_id, idoso_id, unidade FROM lote_estoque WHERE id = $1",
+      [loteId],
+    );
+    const lote = l.rows[0];
+    if (!lote) throw new Error("lote não encontrado");
+    let idosoId = lote.idoso_id;
+    if (!idosoId) {
+      const i = await c.query<{ id: string }>(
+        `INSERT INTO idoso (casa_id, nome, data_nascimento, codigo_pulseira, status, status_alterado_em)
+         VALUES (app_casa_id(), 'Consumo de teste', '1930-01-01', $1, 'desligado', now())
+         RETURNING id`,
+        [gerarCodigoOpaco()],
+      );
+      idosoId = i.rows[0]?.id ?? null;
+    }
+    const p = await c.query<{ id: string }>(
+      `INSERT INTO prescricao (casa_id, idoso_id, medicamento_id, grupo_id, versao, tipo, dose, unidade,
+                               via, inicio, sos_indicacao, sos_limite_diario, sos_intervalo_min,
+                               status, encerrada_em, criado_por)
+       VALUES (app_casa_id(), $1, $2, gen_random_uuid(), 1, 'sos', 1, $3::unidade_dose, 'oral',
+               '2020-01-01', 'teste de estoque', 24, 1, 'encerrada', now(), $4)
+       RETURNING id`,
+      [idosoId, lote.medicamento_id, lote.unidade, usuarioId],
+    );
+    const a = await c.query<{ id: string }>(
+      `INSERT INTO administracao (casa_id, chave, prescricao_id, idoso_id, resultado, motivo, lote_id,
+                                  quantidade, usuario_id, ocorrida_em, registrada_em, metodo)
+       VALUES (app_casa_id(), gen_random_uuid(), $1, $2, 'administrada', 'teste de estoque', $3, $4,
+               $5, now(), now(), 'qr')
+       RETURNING id`,
+      [p.rows[0]?.id, idosoId, loteId, quantidade, usuarioId],
+    );
+    await c.query(
       `INSERT INTO movimento_estoque (casa_id, lote_id, tipo, quantidade, usuario_id, administracao_id)
-       VALUES (app_casa_id(), $1, 'consumo', $2, $3, gen_random_uuid())`,
-      [loteId, -quantidade, usuarioId],
-    ),
-  );
+       VALUES (app_casa_id(), $1, 'consumo', $2, $3, $4)`,
+      [loteId, -quantidade, usuarioId, a.rows[0]?.id],
+    );
+  });
 }

@@ -299,7 +299,10 @@ describe("saldo por movimentos e travas do banco", () => {
     }
     expect(await tenta("ajuste", 1, "NULL", "NULL")).toBe("movimento_motivo_obrigatorio");
     expect(await tenta("consumo", -1, "NULL", "NULL")).toBe("movimento_consumo_tem_administracao");
-    expect(await tenta("consumo", -1, "NULL", "gen_random_uuid()")).toBeNull();
+    // A administração precisa existir de verdade (chave estrangeira desde o M5).
+    expect(await tenta("consumo", -1, "NULL", "gen_random_uuid()")).toBe(
+      "movimento_administracao_fk",
+    );
   });
 
   it("fracionamento exige o par que liga as duas pontas", async () => {

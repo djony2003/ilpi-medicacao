@@ -61,6 +61,8 @@ let idsDeB: {
   lote: string;
   codigoDoLote: string;
   inventario: string;
+  dose: string;
+  sos: string;
 };
 let idosoDeA: string;
 let gestorBToken: string;
@@ -115,6 +117,24 @@ const CORPOS_VALIDOS: Record<string, unknown> = {
   "/estoque/inventarios/:id/contagens": { loteId: UUID_QUALQUER, contado: 1 },
   "/estoque/inventarios/:id/concluir": { justificativas: {}, aceitarNaoContados: true },
   "/estoque/inventarios/:id/cancelar": {},
+  "/administracao/doses/:id/conferir": { pulseira: "ILPI:I:ABCDEFGHJKMNPQRSTUVW" },
+  "/administracao/doses/:id/registrar": {
+    chave: "00000000-0000-4000-8000-0000000000cc",
+    resultado: "nao_administrada",
+    motivo: "tentativa de invasão",
+  },
+  "/administracao/doses/:id/tardio": {
+    chave: "00000000-0000-4000-8000-0000000000cd",
+    resultado: "nao_administrada",
+    ocorridaEm: "2026-03-10T08:00:00-03:00",
+    motivo: "tentativa de invasão",
+  },
+  "/administracao/sos/:id/registrar": {
+    chave: "00000000-0000-4000-8000-0000000000ce",
+    pulseira: "ILPI:I:ABCDEFGHJKMNPQRSTUVW",
+    lote: "ILPI:L:ABCDEFGHJKMNPQRSTUVW",
+    sintoma: "tentativa de invasão",
+  },
 };
 
 /** Rotas cujo corpo é um arquivo, não JSON. */
@@ -235,6 +255,25 @@ beforeAll(async () => {
   if (!loteB.ok) throw new Error("lote da casa B deveria entrar");
   const invB = await iniciarInventario(servico(), gestorB);
   if (!invB.ok) throw new Error("inventário da casa B deveria abrir");
+  const sosB = await prescrever(servico(), gestorB, {
+    idosoId: idosoB.idosoId,
+    medicamentoId: medB.medicamentoId,
+    tipo: "sos",
+    dose: 1,
+    unidade: "comprimido",
+    via: "oral",
+    inicio: "2026-03-10",
+    fim: null,
+    altoRisco: false,
+    horarios: [],
+    sos: { indicacao: "CANARIO-B-INDICACAO-SOS", limiteDiario: 3, intervaloMinimoMin: 60 },
+  });
+  if (!sosB.ok) throw new Error("prescrição SOS da casa B deveria entrar");
+  const doseB = await comContexto(app, { casaId: casaB }, async (c) => {
+    const r = await c.query<{ id: string }>("SELECT id FROM dose_agendada LIMIT 1");
+    return r.rows[0]?.id ?? "";
+  });
+  if (!doseB) throw new Error("a casa B deveria ter doses");
   const codigoDoLoteB = await comContexto(app, { casaId: casaB }, async (c) => {
     const r = await c.query<{ codigo_qr: string }>(
       "SELECT codigo_qr FROM lote_estoque WHERE id = $1",
@@ -255,6 +294,8 @@ beforeAll(async () => {
     lote: loteB.loteId,
     codigoDoLote: codigoDoLoteB,
     inventario: invB.inventarioId,
+    dose: doseB,
+    sos: sosB.prescricaoId,
   };
   canarios = [
     "CANARIO-B-NOME-ENFERMEIRO",
@@ -287,6 +328,9 @@ beforeAll(async () => {
     loteB.loteId,
     codigoDoLoteB,
     invB.inventarioId,
+    doseB,
+    sosB.prescricaoId,
+    "CANARIO-B-INDICACAO-SOS",
     ...[enfB.email, gestorB.usuario.email].filter((x): x is string => Boolean(x)),
   ];
 
@@ -441,19 +485,25 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
         contatoId: idsDeB.contato,
         receitaId: idsDeB.receita,
       };
-      const ids = r.caminho.startsWith("/estoque/lotes")
-        ? [idsDeB.lote]
-        : r.caminho.startsWith("/estoque/inventarios")
-          ? [idsDeB.inventario]
-          : r.caminho.startsWith("/admin/dispositivos")
-            ? [idsDeB.dispositivo]
-            : r.caminho.startsWith("/idosos")
-              ? [idsDeB.idoso]
-              : r.caminho.startsWith("/medicamentos")
-                ? [idsDeB.medicamento]
-                : r.caminho.startsWith("/prescricoes")
-                  ? [idsDeB.prescricao]
-                  : idsDeB.usuarios;
+      const ids = r.caminho.startsWith("/administracao/doses")
+        ? [idsDeB.dose]
+        : r.caminho.startsWith("/administracao/idosos")
+          ? [idsDeB.idoso]
+          : r.caminho.startsWith("/administracao/sos")
+            ? [idsDeB.sos]
+            : r.caminho.startsWith("/estoque/lotes")
+              ? [idsDeB.lote]
+              : r.caminho.startsWith("/estoque/inventarios")
+                ? [idsDeB.inventario]
+                : r.caminho.startsWith("/admin/dispositivos")
+                  ? [idsDeB.dispositivo]
+                  : r.caminho.startsWith("/idosos")
+                    ? [idsDeB.idoso]
+                    : r.caminho.startsWith("/medicamentos")
+                      ? [idsDeB.medicamento]
+                      : r.caminho.startsWith("/prescricoes")
+                        ? [idsDeB.prescricao]
+                        : idsDeB.usuarios;
       for (const id of ids) {
         const url = concreta(r, { id, ...complementos });
         const resp = await gestorA.nav.chamar(r.metodo, url, opcoesDeCorpo(r));
@@ -501,7 +551,8 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
                 (SELECT count(*) FROM lote_estoque)::int AS lotes,
                 (SELECT count(*) FROM impressao_etiqueta)::int AS etiquetas,
                 (SELECT status::text FROM inventario WHERE id = $2) AS inventario,
-                (SELECT count(*) FROM inventario_item WHERE contado IS NOT NULL)::int AS contados`,
+                (SELECT count(*) FROM inventario_item WHERE contado IS NOT NULL)::int AS contados,
+                (SELECT count(*) FROM administracao)::int AS administracoes`,
         [idsDeB.lote, idsDeB.inventario],
       );
       expect(estoque.rows[0]).toEqual({
@@ -511,6 +562,7 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
         etiquetas: 0,
         inventario: "aberto",
         contados: 0,
+        administracoes: 0,
       });
     });
     // O gestor da casa B continua com a sessão dele.

@@ -38,6 +38,11 @@ export {
 } from "./dados/login-pin";
 export { reautenticar } from "./dados/reautenticar";
 export {
+  confirmarPinDeOutraPessoa,
+  type PessoaConfirmada,
+  type ResultadoDaConfirmacao,
+} from "./dados/confirmar-pin";
+export {
   criarUsuario,
   desativarUsuario,
   desbloquearUsuario,

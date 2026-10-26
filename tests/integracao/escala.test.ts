@@ -343,6 +343,8 @@ describe("folha de contingência", () => {
       previstaEm: "2026-03-10T11:00:00.000Z",
       estado: "a_fazer" as const,
       minutosDesdeOHorario: -10,
+      adiadaPara: null,
+      registro: null,
     }));
     const pdf = await gerarPdfDaFolha({
       casaNome: "Casa Longa",

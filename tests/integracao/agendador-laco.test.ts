@@ -58,11 +58,13 @@ describe("laço do agendador", () => {
       intervaloMs: 40,
       sinal: controle.signal,
     });
-    await new Promise((r) => setTimeout(r, 300));
+    // Cada rodada percorre todas as casas do banco de teste, e o tempo dela cresce com os outros
+    // testes rodando em paralelo: espera as 3 rodadas (com prazo), em vez de um tempo fixo.
+    const rodadas = () => linhas.filter((l) => l.mensagem === "rodada concluída").length;
+    const prazo = Date.now() + 10_000;
+    while (rodadas() < 3 && Date.now() < prazo) await new Promise((r) => setTimeout(r, 20));
     controle.abort();
     await rodando;
-    expect(linhas.filter((l) => l.mensagem === "rodada concluída").length).toBeGreaterThanOrEqual(
-      3,
-    );
+    expect(rodadas()).toBeGreaterThanOrEqual(3);
   });
 });

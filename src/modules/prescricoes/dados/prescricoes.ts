@@ -147,6 +147,8 @@ async function inserirVersao(
     justificativa: string | null;
     /** Relógio da aplicação (injetável): é o marco a partir do qual a versão gera doses. */
     criadaEm: Date;
+    /** Alergias que quem prescreveu confirmou, ciente do conflito: não bloqueiam a administração. */
+    alergiasConfirmadas: string[];
   },
 ): Promise<{ id: string; grupoId: string }> {
   const k = v.conteudo;
@@ -154,10 +156,10 @@ async function inserirVersao(
     `INSERT INTO prescricao
        (casa_id, idoso_id, medicamento_id, grupo_id, versao, substitui_id, tipo, dose, unidade, via,
         instrucoes, inicio, fim, alto_risco, sos_indicacao, sos_limite_diario, sos_intervalo_min,
-        prescritor, justificativa, criado_por, criado_em)
+        prescritor, justificativa, criado_por, criado_em, alergias_confirmadas)
      VALUES (app_casa_id(), $1, $2, coalesce($3::uuid, gen_random_uuid()), $4, $5, $6, $7, $8, $9,
              nullif(btrim($10), ''), $11, $12, $13, $14, $15, $16, nullif(btrim($17), ''),
-             nullif(btrim($18), ''), $19, $20)
+             nullif(btrim($18), ''), $19, $20, $21::uuid[])
      RETURNING id, grupo_id`,
     [
       v.idosoId,
@@ -180,6 +182,7 @@ async function inserirVersao(
       v.justificativa ?? "",
       ator.usuarioId,
       v.criadaEm,
+      v.alergiasConfirmadas,
     ],
   );
   const criada = r.rows[0];
@@ -267,6 +270,7 @@ export async function prescrever(
       conteudo: entrada,
       justificativa: conflitos.length > 0 ? justificativaAlergia : null,
       criadaEm: agora,
+      alergiasConfirmadas: conflitos.map((x) => x.alergiaId),
     });
     await registrarAuditoria(c, {
       acao: "prescricao.criada",
@@ -390,6 +394,7 @@ export async function novaVersao(
         conflitos.length > 0
           ? `${justificativa} | Alergia confirmada: ${justificativaAlergia}`
           : justificativa,
+      alergiasConfirmadas: conflitos.map((x) => x.alergiaId),
       criadaEm: agora,
     });
     await registrarAuditoria(c, {
