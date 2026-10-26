@@ -25,6 +25,7 @@ import { escalaDoPlantao, gerarDosesDaCasa } from "@/modules/administracao";
 import { adicionarAlergia, adicionarContato, cadastrarIdoso, obterIdoso } from "@/modules/idosos";
 import { anexarReceita, cadastrarMedicamento, prescrever } from "@/modules/prescricoes";
 import { iniciarInventario, registrarEntrada } from "@/modules/estoque";
+import { verificarAlertasDaCasa } from "@/modules/alertas";
 import { ArmazenamentoEmMemoria } from "@/compartilhado/armazenamento";
 
 // Malha de vazamento entre casas. Percorre TODAS as rotas da API (o inventário vem do próprio
@@ -63,6 +64,7 @@ let idsDeB: {
   inventario: string;
   dose: string;
   sos: string;
+  alerta: string;
 };
 let idosoDeA: string;
 let gestorBToken: string;
@@ -117,6 +119,7 @@ const CORPOS_VALIDOS: Record<string, unknown> = {
   "/estoque/inventarios/:id/contagens": { loteId: UUID_QUALQUER, contado: 1 },
   "/estoque/inventarios/:id/concluir": { justificativas: {}, aceitarNaoContados: true },
   "/estoque/inventarios/:id/cancelar": {},
+  "/alertas/:id/encerrar": { justificativa: "tentativa de invasão" },
   "/administracao/doses/:id/conferir": { pulseira: "ILPI:I:ABCDEFGHJKMNPQRSTUVW" },
   "/administracao/doses/:id/registrar": {
     chave: "00000000-0000-4000-8000-0000000000cc",
@@ -274,6 +277,26 @@ beforeAll(async () => {
     return r.rows[0]?.id ?? "";
   });
   if (!doseB) throw new Error("a casa B deveria ter doses");
+  // Um alerta aberto na casa B: uma dose dela, três horas depois do horário, sem registro.
+  const previstaB = await comContexto(app, { casaId: casaB }, async (c) => {
+    const r = await c.query<{ prevista_em: Date }>(
+      "SELECT prevista_em FROM dose_agendada ORDER BY prevista_em LIMIT 1",
+    );
+    return r.rows[0]?.prevista_em ?? new Date();
+  });
+  await verificarAlertasDaCasa(
+    { pool: app, agora: () => new Date(previstaB.getTime() + 3 * 3_600_000) },
+    casaB,
+  );
+  const alertaB = await comContexto(app, { casaId: casaB }, async (c) => {
+    const r = await c.query<{ id: string; titulo: string }>(
+      "SELECT id, titulo FROM alerta WHERE estado = 'aberto' AND tipo = 'dose_sem_registro' LIMIT 1",
+    );
+    return r.rows[0];
+  });
+  if (!alertaB?.titulo.includes("CANARIO-B-NOME-IDOSO")) {
+    throw new Error("a casa B deveria ter um alerta com o nome do residente");
+  }
   const codigoDoLoteB = await comContexto(app, { casaId: casaB }, async (c) => {
     const r = await c.query<{ codigo_qr: string }>(
       "SELECT codigo_qr FROM lote_estoque WHERE id = $1",
@@ -296,6 +319,7 @@ beforeAll(async () => {
     inventario: invB.inventarioId,
     dose: doseB,
     sos: sosB.prescricaoId,
+    alerta: alertaB.id,
   };
   canarios = [
     "CANARIO-B-NOME-ENFERMEIRO",
@@ -330,6 +354,7 @@ beforeAll(async () => {
     invB.inventarioId,
     doseB,
     sosB.prescricaoId,
+    alertaB.id,
     "CANARIO-B-INDICACAO-SOS",
     ...[enfB.email, gestorB.usuario.email].filter((x): x is string => Boolean(x)),
   ];
@@ -485,25 +510,27 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
         contatoId: idsDeB.contato,
         receitaId: idsDeB.receita,
       };
-      const ids = r.caminho.startsWith("/administracao/doses")
-        ? [idsDeB.dose]
-        : r.caminho.startsWith("/administracao/idosos")
-          ? [idsDeB.idoso]
-          : r.caminho.startsWith("/administracao/sos")
-            ? [idsDeB.sos]
-            : r.caminho.startsWith("/estoque/lotes")
-              ? [idsDeB.lote]
-              : r.caminho.startsWith("/estoque/inventarios")
-                ? [idsDeB.inventario]
-                : r.caminho.startsWith("/admin/dispositivos")
-                  ? [idsDeB.dispositivo]
-                  : r.caminho.startsWith("/idosos")
-                    ? [idsDeB.idoso]
-                    : r.caminho.startsWith("/medicamentos")
-                      ? [idsDeB.medicamento]
-                      : r.caminho.startsWith("/prescricoes")
-                        ? [idsDeB.prescricao]
-                        : idsDeB.usuarios;
+      const ids = r.caminho.startsWith("/alertas")
+        ? [idsDeB.alerta]
+        : r.caminho.startsWith("/administracao/doses")
+          ? [idsDeB.dose]
+          : r.caminho.startsWith("/administracao/idosos")
+            ? [idsDeB.idoso]
+            : r.caminho.startsWith("/administracao/sos")
+              ? [idsDeB.sos]
+              : r.caminho.startsWith("/estoque/lotes")
+                ? [idsDeB.lote]
+                : r.caminho.startsWith("/estoque/inventarios")
+                  ? [idsDeB.inventario]
+                  : r.caminho.startsWith("/admin/dispositivos")
+                    ? [idsDeB.dispositivo]
+                    : r.caminho.startsWith("/idosos")
+                      ? [idsDeB.idoso]
+                      : r.caminho.startsWith("/medicamentos")
+                        ? [idsDeB.medicamento]
+                        : r.caminho.startsWith("/prescricoes")
+                          ? [idsDeB.prescricao]
+                          : idsDeB.usuarios;
       for (const id of ids) {
         const url = concreta(r, { id, ...complementos });
         const resp = await gestorA.nav.chamar(r.metodo, url, opcoesDeCorpo(r));
@@ -552,7 +579,9 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
                 (SELECT count(*) FROM impressao_etiqueta)::int AS etiquetas,
                 (SELECT status::text FROM inventario WHERE id = $2) AS inventario,
                 (SELECT count(*) FROM inventario_item WHERE contado IS NOT NULL)::int AS contados,
-                (SELECT count(*) FROM administracao)::int AS administracoes`,
+                (SELECT count(*) FROM administracao)::int AS administracoes,
+                (SELECT count(*) FROM alerta WHERE estado = 'aberto')::int AS alertas_abertos,
+                (SELECT count(*) FROM alerta_leitura)::int AS leituras`,
         [idsDeB.lote, idsDeB.inventario],
       );
       expect(estoque.rows[0]).toEqual({
@@ -563,6 +592,8 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
         inventario: "aberto",
         contados: 0,
         administracoes: 0,
+        alertas_abertos: 1,
+        leituras: 0,
       });
     });
     // O gestor da casa B continua com a sessão dele.

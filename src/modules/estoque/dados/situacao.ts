@@ -175,6 +175,18 @@ async function calcular(
   return { hoje, reservas: calculadas };
 }
 
+/**
+ * Situação de todas as reservas da casa do contexto, sem conferência de perfil: leitura interna,
+ * usada pela verificação de alertas (agendador). A tela usa `situacaoDoEstoque`.
+ */
+export async function reservasDoEstoque(
+  c: PoolClient,
+  agora: Date,
+): Promise<{ hoje: string; reservas: ReservaDeEstoque[] }> {
+  const { hoje, reservas } = await calcular(c, agora);
+  return { hoje, reservas: reservas.map((x) => x.saida) };
+}
+
 export type FiltroDeSituacao = { idosoId?: string; medicamentoId?: string };
 
 export async function situacaoDoEstoque(

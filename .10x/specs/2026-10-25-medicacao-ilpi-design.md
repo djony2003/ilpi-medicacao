@@ -214,6 +214,7 @@ Visão por idoso, visão por medicamento, lista de reposição sugerida (export�
 | Liberar exceção de conferência | Não | Sim | Sim |
 | Entrada, ajuste e descarte de estoque | Não | Sim | Sim |
 | Cadastrar idoso, alergias e contatos | Não | Sim | Sim |
+| Ver, ler e encerrar alertas | Não | Sim | Sim |
 | Gerenciar usuários e configurações | Não | Não | Sim |
 | Ver auditoria e relatório de exceções | Não | Não | Sim |
 

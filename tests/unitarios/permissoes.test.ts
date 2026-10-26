@@ -19,6 +19,7 @@ const ESPERADO: Record<Acao, Record<Perfil, boolean>> = {
   "conferencia.liberar_excecao": { cuidador: false, enfermeiro: true, gestor: true },
   "estoque.gerir": { cuidador: false, enfermeiro: true, gestor: true },
   "idoso.gerir": { cuidador: false, enfermeiro: true, gestor: true },
+  "alertas.ver": { cuidador: false, enfermeiro: true, gestor: true },
   "usuarios.gerir": { cuidador: false, enfermeiro: false, gestor: true },
   "configuracoes.gerir": { cuidador: false, enfermeiro: false, gestor: true },
   "dispositivos.gerir": { cuidador: false, enfermeiro: false, gestor: true },

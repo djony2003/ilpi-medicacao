@@ -18,6 +18,7 @@ const PERMISSOES = {
   "conferencia.liberar_excecao": ENFERMAGEM_E_GESTAO,
   "estoque.gerir": ENFERMAGEM_E_GESTAO,
   "idoso.gerir": ENFERMAGEM_E_GESTAO,
+  "alertas.ver": ENFERMAGEM_E_GESTAO,
   // Só o gestor
   "usuarios.gerir": SO_GESTAO,
   "configuracoes.gerir": SO_GESTAO,

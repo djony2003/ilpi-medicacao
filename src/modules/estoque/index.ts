@@ -30,6 +30,7 @@ export {
   DIAS_PARA_REPOR_PADRAO,
   listaDeReposicao,
   listarSobras,
+  reservasDoEstoque,
   situacaoDoEstoque,
   type FiltroDeSituacao,
   type ItemDeReposicao,

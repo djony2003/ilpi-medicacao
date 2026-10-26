@@ -94,6 +94,7 @@ const STATUS_DE_FALHA: Record<string, number> = {
   limite_sos: 409,
   nao_e_sos: 422,
   prazo_do_registro_tardio: 422,
+  ja_resolvido: 409,
   arquivo_invalido: 415,
   arquivo_grande_demais: 413,
 };
