@@ -1,22 +1,22 @@
 # Handoff
 
-**De:** Estratégia (CTO + PM)
-**Para:** Design (Arquiteto + Staff Engineer)
+**De:** Design (Arquiteto + Staff Engineer)
+**Para:** Planejamento (Engineering Manager + Senior Engineer)
 **Data:** 2026-10-25
 
 ## Contexto
-Spec aprovada pelo usuário. A V1 é o núcleo de medicação de um produto multicasa para casas de idosos. Estratégia confirmada: construir, condicionado à validação de mercado do diferencial (conferência por QR no tablet do posto).
+Design fechado. ADR-001 aceito (monolito modular em Next.js + PostgreSQL com RLS). Projeto novo, sem código.
 
-## O que o Arquiteto deve fazer
-- Aceitar ou ajustar o ADR-001 (`.10x/adrs/001-monolito-modular-rls.md`).
-- Detalhar componentes, fronteiras entre módulos, fluxo de requisição com RLS e modos de falha.
+## Entradas para o plano
+- Componentes, fluxo de requisição com RLS, transação do registro de administração, idempotência, agendador e modos de falha: `.10x/decisions/architect/medicacao-ilpi.md`
+- Estrutura do repositório, ferramentas, regras de código e CI: `.10x/decisions/staff-engineer/medicacao-ilpi.md`
+- Escopo e critérios: spec e `.10x/decisions/product-manager/medicacao-ilpi.md`
 
-## O que o Staff Engineer deve fazer
-- Projeto novo, sem código existente: definir convenções, estrutura de pastas, ferramentas de teste e regras que mantêm as fronteiras entre módulos.
+## O que o Engineering Manager deve entregar
+Lista ordenada de tarefas de no máximo meio dia, com dependências, agrupadas em marcos que entreguem valor verificável.
 
-## Referências
-- Spec: `.10x/specs/2026-10-25-medicacao-ilpi-design.md`
-- Decisões: `.10x/decisions/cto/medicacao-ilpi.md`, `.10x/decisions/product-manager/medicacao-ilpi.md`
+## O que o Senior Engineer deve entregar
+Abordagem de implementação por grupo de tarefas e os pontos difíceis (RLS, concorrência, auditoria encadeada, agendador, leitura de QR no tablet).
 
 ## Atenção
-Nenhum código antes de ADR aceito e de planejamento concluído.
+Os testes de regras de conferência, isolamento entre casas e auditoria são portões de qualidade: nenhuma tarefa de implementação os dispensa.

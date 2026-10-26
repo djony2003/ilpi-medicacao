@@ -1,6 +1,6 @@
 # ADR-001: Monolito modular em Next.js + PostgreSQL com isolamento por Row Level Security
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-25
 **Feature:** medicacao-ilpi
 **Author:** 10x-Team (Architect + Staff Engineer)

@@ -2,15 +2,15 @@
 
 **Projeto:** Sistema de medicação para casas de idosos (ILPI)
 **Feature atual:** medicacao-ilpi (V1)
-**Fase atual:** Fase 1 — Estratégia concluída
+**Fase atual:** Fase 2 — Design concluído
 **Atualizado em:** 2026-10-25
 
 ## Fases
 | Fase | Estado |
 |---|---|
-| 0. Brainstorming | Concluída. Spec aprovada pelo usuário: `.10x/specs/2026-10-25-medicacao-ilpi-design.md` |
-| 1. Estratégia | Concluída. CTO e PM confirmados |
-| 2. Design | Não iniciada (ADR-001 proposto) |
+| 0. Brainstorming | Concluída. Spec aprovada |
+| 1. Estratégia | Concluída |
+| 2. Design | Concluída. ADR-001 aceito. Decisões de arquiteto e Staff Engineer escritas |
 | 3. Planejamento | Não iniciada |
 | 4. Implementação | Não iniciada |
 | 5. Verificação | Não iniciada |
