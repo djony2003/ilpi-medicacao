@@ -1,9 +1,14 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import pg from "pg";
 
 // Prepara o banco de teste antes da suíte. Os testes sempre usam o banco "ilpi_test",
 // nunca o banco de desenvolvimento, porque criam e removem tabelas temporárias.
+//
+// Quando há credencial de administrador, o banco de teste é recriado do zero a cada execução.
+// Isso garante que as migrações funcionam a partir do vazio e que não sobram dados de execuções
+// anteriores (a auditoria, por exemplo, não permite apagar linhas).
 
 const NOME_BANCO_TESTE = "ilpi_test";
 
@@ -13,7 +18,17 @@ function trocarBanco(url: string, banco: string): string {
   return destino.toString();
 }
 
-export default function setup() {
+async function recriarBancoDeTeste(adminUrl: string): Promise<void> {
+  const admin = new pg.Client({ connectionString: adminUrl });
+  await admin.connect();
+  try {
+    await admin.query(`DROP DATABASE IF EXISTS ${NOME_BANCO_TESTE} WITH (FORCE)`);
+  } finally {
+    await admin.end();
+  }
+}
+
+export default async function setup() {
   const raiz = path.resolve(import.meta.dirname, "../..");
   const arquivoEnv = path.join(raiz, ".env");
   if (fs.existsSync(arquivoEnv)) process.loadEnvFile(arquivoEnv);
@@ -28,12 +43,18 @@ export default function setup() {
     process.env[nome] = trocarBanco(valor, NOME_BANCO_TESTE);
   }
 
+  // Chave fixa, só para testes: o valor nunca é usado fora desta suíte.
+  process.env.CHAVE_CAMPOS ??= Buffer.alloc(32, 9).toString("base64");
+
   const executar = (script: string) =>
     execFileSync(process.execPath, [path.join(raiz, "scripts", script)], {
       env: process.env,
       stdio: "inherit",
     });
 
-  if (process.env.ADMIN_DATABASE_URL) executar("db-setup.mjs");
+  if (process.env.ADMIN_DATABASE_URL) {
+    await recriarBancoDeTeste(process.env.ADMIN_DATABASE_URL);
+    executar("db-setup.mjs");
+  }
   executar("migrar.mjs");
 }
