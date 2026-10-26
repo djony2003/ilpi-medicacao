@@ -35,7 +35,7 @@ Por ser um conjunto de módulos independentes, o escopo foi decomposto em etapas
 - Escala de doses por plantão e registro da administração com conferência por QR
 - Segunda validação para medicamentos de alto risco
 - Doses "se necessário" (SOS) com limite diário e intervalo mínimo
-- Estoque com entrada, etiquetas QR, consumo automático, perdas, descartes e inventário
+- Estoque com entrada, etiquetas QR, consumo automático, perdas, descartes e inventário por contagem manual
 - Alertas de estoque baixo, validade, dose atrasada e dose sem registro (painel e e-mail)
 - Trilha de auditoria imutável
 - Folha de contingência em papel e fluxo de registro tardio
@@ -197,7 +197,7 @@ O alerta de estoque considera o prazo médio de reposição informado pela casa.
 - Mensagens externas nunca contêm dados de saúde, apenas a indicação de que há um alerta no sistema.
 
 ### 6.6 Perdas, descartes e inventário
-Perda, quebra, descarte, devolução e ajuste exigem motivo e entram na auditoria. Ao fim de tratamento ou saída do idoso, o sistema lista as sobras para destinação. O inventário é assistido por leitura de QR, com divergências apontadas e ajustes justificados. A reimpressão de etiqueta mantém o mesmo código e registra quem reimprimiu.
+Perda, quebra, descarte, devolução e ajuste exigem motivo e entram na auditoria. Ao fim de tratamento ou saída do idoso, o sistema lista as sobras para destinação. Na V1, o inventário é uma contagem manual por lote, com divergências apontadas e ajustes justificados. A leitura de QR para acelerar a contagem (inventário assistido) entra na V1.1. A reimpressão de etiqueta mantém o mesmo código e registra quem reimprimiu.
 
 ### 6.7 Telas
 Visão por idoso, visão por medicamento, lista de reposição sugerida (exportável em PDF) e relatório de movimentações.
