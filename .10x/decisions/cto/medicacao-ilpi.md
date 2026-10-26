@@ -1,6 +1,7 @@
 # CTO — medicacao-ilpi
 
 **Data:** 2026-10-25
+**Estado:** Confirmado (spec aprovada pelo usuário)
 
 ## Veredito
 Construir, condicionado à validação de mercado. Existem sistemas de gestão para casas de idosos (ILPIs) no Brasil. O diferencial proposto é a **conferência por QR code na medicação, pensada para o tablet do posto**. Validar com 2 ou 3 casas antes de investir pesado.

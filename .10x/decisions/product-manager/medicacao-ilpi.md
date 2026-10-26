@@ -1,6 +1,7 @@
 # Product Manager — medicacao-ilpi
 
 **Data:** 2026-10-25
+**Estado:** Confirmado (spec aprovada pelo usuário)
 
 ## Problema
 Casas de idosos controlam medicação com papel e processos manuais, o que gera risco de erro de dose, horário ou paciente, estoque que acaba sem aviso e falta de rastreabilidade.

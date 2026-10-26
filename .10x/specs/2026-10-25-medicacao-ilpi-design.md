@@ -2,7 +2,7 @@
 
 **Data:** 2026-10-25
 **Feature:** medicacao-ilpi
-**Status:** Aguardando revisão do usuário
+**Status:** Aprovada pelo usuário em 2026-10-25
 **Origem:** Brainstorming (Fase 0) com o usuário
 
 ---
