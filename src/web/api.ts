@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { ehUuid } from "@/compartilhado/banco/transacao";
 import { log } from "@/compartilhado/log";
 import {
   ErroDePermissao,
@@ -33,7 +32,6 @@ import {
   type Acao,
   type Rejeicao,
   type Servico,
-  type SessaoAutenticada,
 } from "@/modules/identidade";
 import {
   ErroHttp,
@@ -45,50 +43,12 @@ import {
   montarCookie,
   nomeDoCookie,
 } from "./http";
+import { ROTAS_IDOSOS } from "./rotas-idosos";
+import { idDaRota, sessaoDe, texto, type Acesso, type Contexto, type Rota } from "./rota";
 
 // API de identidade e administração. Um único despachante recebe Request e devolve Response.
 // Cada rota declara o tipo de acesso que exige, e o despachante aplica as regras comuns antes de
 // chamar o tratador: origem (CSRF), sessão, troca obrigatória de credencial e tratamento de erro.
-
-type Acesso =
-  | "publico"
-  /** Sessão aberta com a senha, ainda sem o segundo fator. */
-  | "sessao_incompleta"
-  /** Tablet aprovado (cookie do aparelho), sem usuário logado. */
-  | "dispositivo"
-  /** Sessão completa. */
-  | "sessao";
-
-type Contexto = {
-  request: Request;
-  servico: Servico;
-  params: Record<string, string>;
-  ip: string | null;
-  producao: boolean;
-  /** Token do cookie de sessão, quando presente (ainda não validado). */
-  tokenDeSessao: string | null;
-  tokenDoDispositivo: string | null;
-  sessao: SessaoAutenticada | null;
-  /** Cookies a enviar na resposta. */
-  cookies: string[];
-  definirSessao(token: string, maxAgeMs: number): void;
-  limparSessao(): void;
-  definirDispositivo(token: string): void;
-};
-
-type Rota = {
-  metodo: "GET" | "POST";
-  caminho: string;
-  acesso: Acesso;
-  /** Permitida mesmo quando a pessoa ainda precisa trocar a senha ou o PIN provisório. */
-  permiteComTrocaPendente?: boolean;
-  /**
-   * Permissão exigida do perfil, conferida pelo despachante ANTES de ler o corpo. As funções do
-   * módulo conferem de novo (defesa em duas camadas). Toda rota /admin precisa declarar uma.
-   */
-  permissao?: Acao;
-  tratar(ctx: Contexto): Promise<Response>;
-};
 
 const NEGADO = (): Response => json({ erro: "credenciais_invalidas" }, 401);
 
@@ -109,18 +69,6 @@ function resposta(r: { ok: true } | Rejeicao, extra: Record<string, unknown> = {
   return json(corpo, STATUS_DE_REJEICAO[r.motivo]);
 }
 
-function sessaoDe(ctx: Contexto): SessaoAutenticada {
-  if (!ctx.sessao) throw new ErroHttp(401, "nao_autenticado");
-  return ctx.sessao;
-}
-
-function idDaRota(ctx: Contexto): string {
-  const id = ctx.params.id;
-  if (!id || !ehUuid(id)) throw new ErroHttp(404, "nao_encontrado");
-  return id;
-}
-
-const texto = (max: number) => z.string().min(1).max(max);
 const codigoTotp = z.object({ codigo: z.string().max(10) }).strict();
 
 const ROTAS: Rota[] = [
@@ -428,6 +376,9 @@ const ROTAS: Rota[] = [
       return revogado ? json({ ok: true }) : json({ erro: "nao_encontrado" }, 404);
     },
   },
+
+  // ---------------------------------------------------------------- idosos
+  ...ROTAS_IDOSOS,
 ];
 
 export type DescricaoDeRota = {

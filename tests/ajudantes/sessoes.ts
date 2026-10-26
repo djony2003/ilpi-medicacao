@@ -2,8 +2,11 @@ import type pg from "pg";
 import { expect } from "vitest";
 import { cifrar } from "@/compartilhado/criptografia";
 import {
+  ativarDispositivo,
   autenticarSessao,
+  criarDispositivo,
   entrar,
+  entrarComPin,
   gerarCodigo,
   gerarSegredoTotp,
   passoDe,
@@ -56,4 +59,32 @@ export async function criarAtorWeb(
   const sessao = await autenticarSessao(servico(), etapa1.token);
   if (!sessao) throw new Error("a sessão deveria valer");
   return { ...sessao, token: etapa1.token, usuario, segredoTotp };
+}
+
+export type AtorTablet = SessaoAutenticada & { token: string; usuario: UsuarioDeTeste };
+
+/**
+ * Cria um tablet aprovado e um usuário com PIN, e entra pelo caminho real (aparelho + PIN).
+ * Por padrão o usuário é cuidador, o perfil mais restrito.
+ */
+export async function criarAtorTablet(
+  servico: () => Servico,
+  migrador: pg.Pool,
+  casaId: string,
+  perfil: "cuidador" | "enfermeiro" = "cuidador",
+): Promise<AtorTablet> {
+  const gestor = await criarAtorWeb(servico, migrador, casaId, "gestor", { reautenticado: true });
+  const { codigo } = await criarDispositivo(servico(), gestor, { nome: "Tablet de teste" });
+  const ativacao = await ativarDispositivo(servico(), { codigo });
+  if (!ativacao.ok) throw new Error("a ativação deveria funcionar");
+  const usuario = await criarUsuario(migrador, casaId, { perfil, pin: "846201" });
+  const entrada = await entrarComPin(servico(), {
+    tokenDoDispositivo: ativacao.token,
+    usuarioId: usuario.id,
+    pin: "846201",
+  });
+  if (!entrada.ok) throw new Error("o PIN deveria ser aceito");
+  const sessao = await autenticarSessao(servico(), entrada.token);
+  if (!sessao) throw new Error("a sessão deveria valer");
+  return { ...sessao, token: entrada.token, usuario };
 }

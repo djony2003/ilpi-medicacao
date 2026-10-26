@@ -17,6 +17,7 @@ import { criarPoolApp, criarPoolMigrador } from "../ajudantes/banco";
 import { criarCasa, criarUsuario } from "../ajudantes/dados";
 import { Navegador, entrarNaApi } from "../ajudantes/navegador";
 import { criarAtorWeb } from "../ajudantes/sessoes";
+import { adicionarAlergia, adicionarContato, cadastrarIdoso, obterIdoso } from "@/modules/idosos";
 
 // Malha de vazamento entre casas. Percorre TODAS as rotas da API (o inventário vem do próprio
 // código), então uma rota nova passa a ser testada sem ninguém precisar lembrar de incluí-la.
@@ -39,16 +40,35 @@ let gestorA: Ator;
 let enfermeiroA: Ator;
 let cuidadorTabletA: Ator;
 let canarios: string[] = [];
-let idsDeB: { usuarios: string[]; dispositivo: string };
+let idsDeB: {
+  usuarios: string[];
+  dispositivo: string;
+  idoso: string;
+  alergia: string;
+  contato: string;
+  pulseira: string;
+};
+let idosoDeA: string;
 let gestorBToken: string;
 
 const rotas = listarRotas();
 const chave = (r: DescricaoDeRota) => `${r.metodo} ${r.caminho}`;
-const concreta = (r: DescricaoDeRota, id = UUID_QUALQUER) => r.caminho.replace(":id", id);
+/** Preenche os parâmetros da rota. `ids` troca por nome; o que faltar vira um UUID que não existe. */
+const concreta = (r: DescricaoDeRota, ids: Record<string, string> | string = {}) => {
+  const porNome = typeof ids === "string" ? { id: ids } : ids;
+  return r.caminho.replace(/:(\w+)/g, (_, nome: string) => porNome[nome] ?? UUID_QUALQUER);
+};
+const temParametro = (r: DescricaoDeRota) => r.caminho.includes(":");
 
 const CORPOS_VALIDOS: Record<string, unknown> = {
   "/admin/usuarios/:id/redefinir-senha": { novaSenha: "uma frase nova e comprida 2026" },
   "/admin/usuarios/:id/redefinir-pin": { novoPin: "273915" },
+  // Corpos válidos: o 404 tem que vir do isolamento, não de uma validação que falhou antes.
+  "/idosos/:id/editar": { quarto: "invadido" },
+  "/idosos/:id/status": { status: "desligado" },
+  "/idosos/:id/alergias": { substancia: "Veneno", gravidade: "grave" },
+  "/idosos/:id/contatos": { nome: "Intruso", parentesco: "Ninguém", telefone: "11999990000" },
+  "/idosos/:id/pulseira/regenerar": { motivo: "tentativa de invasão" },
 };
 
 async function logadoNaApi(casaId: string, perfil: "gestor" | "enfermeiro"): Promise<Ator> {
@@ -93,9 +113,33 @@ beforeAll(async () => {
   const ativacaoB = await ativarDispositivo(servico(), { codigo: dispositivoB.codigo });
   if (!ativacaoB.ok) throw new Error("ativação da casa B deveria funcionar");
   gestorBToken = gestorB.token;
+
+  const idosoB = await cadastrarIdoso(servico(), gestorB, {
+    nome: "CANARIO-B-NOME-IDOSO",
+    dataNascimento: "1931-01-01",
+    cpf: "529.982.247-25",
+    quarto: "CANARIO-B-QUARTO",
+  });
+  if (!idosoB.ok) throw new Error("cadastro do idoso da casa B deveria funcionar");
+  const alergiaB = await adicionarAlergia(servico(), gestorB, {
+    idosoId: idosoB.idosoId,
+    substancia: "CANARIO-B-ALERGIA",
+    gravidade: "grave",
+  });
+  const contatoB = await adicionarContato(servico(), gestorB, {
+    idosoId: idosoB.idosoId,
+    nome: "CANARIO-B-CONTATO",
+    parentesco: "Filho",
+    telefone: "11955554444",
+  });
+  if (!alergiaB.ok || !contatoB.ok) throw new Error("alergia e contato da casa B deveriam entrar");
   idsDeB = {
     usuarios: [enfB.id, cuidB.id, gestorB.usuarioId],
     dispositivo: dispositivoB.dispositivoId,
+    idoso: idosoB.idosoId,
+    alergia: alergiaB.alergiaId,
+    contato: contatoB.contatoId,
+    pulseira: idosoB.codigoPulseira,
   };
   canarios = [
     "CANARIO-B-NOME-ENFERMEIRO",
@@ -106,6 +150,16 @@ beforeAll(async () => {
     cuidB.id,
     gestorB.usuarioId,
     dispositivoB.dispositivoId,
+    "CANARIO-B-NOME-IDOSO",
+    "CANARIO-B-QUARTO",
+    "CANARIO-B-ALERGIA",
+    "CANARIO-B-CONTATO",
+    "52998224725",
+    "11955554444",
+    idosoB.idosoId,
+    alergiaB.alergiaId,
+    contatoB.contatoId,
+    idosoB.codigoPulseira,
     ...[enfB.email, gestorB.usuario.email].filter((x): x is string => Boolean(x)),
   ];
 
@@ -123,6 +177,14 @@ beforeAll(async () => {
   const entrou = await tablet.post("/tablet/entrar", { usuarioId: cuidA.id, pin: "846201" });
   if (entrou.status !== 200) throw new Error("PIN do cuidador A deveria entrar");
   cuidadorTabletA = { nav: tablet, usuarioId: cuidA.id, email: "" };
+
+  const idosoA = await gestorA.nav.post("/idosos", {
+    nome: "Idosa da Casa A",
+    dataNascimento: "1940-03-03",
+    alergias: [{ substancia: "Dipirona", gravidade: "grave" }],
+  });
+  if (idosoA.status !== 201) throw new Error("cadastro do idoso da casa A deveria funcionar");
+  idosoDeA = String(idosoA.corpo.idosoId);
 });
 
 afterAll(async () => {
@@ -211,11 +273,17 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
     const comId = rotas.filter((r) => r.caminho.includes(":id"));
 
     for (const r of comId) {
+      const doIdoso = r.caminho.startsWith("/idosos");
       const ids = r.caminho.startsWith("/admin/dispositivos")
         ? [idsDeB.dispositivo]
-        : idsDeB.usuarios;
+        : doIdoso
+          ? [idsDeB.idoso]
+          : idsDeB.usuarios;
       for (const id of ids) {
-        const resp = await gestorA.nav.chamar(r.metodo, concreta(r, id), {
+        const url = doIdoso
+          ? concreta(r, { id, alergiaId: idsDeB.alergia, contatoId: idsDeB.contato })
+          : concreta(r, id);
+        const resp = await gestorA.nav.chamar(r.metodo, url, {
           corpo: r.metodo === "POST" ? (CORPOS_VALIDOS[r.caminho] ?? {}) : undefined,
         });
         // Para a casa A, o objeto da casa B simplesmente não existe.
@@ -228,6 +296,18 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
     // Nada mudou na casa B: nem dados, nem a trilha de auditoria dela.
     expect(await auditoriaDe(casaB)).toBe(antesDeB);
     await comContexto(app, { casaId: casaB }, async (c) => {
+      const i = await c.query(
+        `SELECT 1 FROM idoso WHERE id = $1 AND quarto = 'CANARIO-B-QUARTO' AND status = 'ativo'`,
+        [idsDeB.idoso],
+      );
+      expect(i.rowCount).toBe(1);
+      const filhos = await c.query(
+        `SELECT (SELECT count(*) FROM alergia WHERE idoso_id = $1 AND ativa)::int AS alergias,
+                (SELECT count(*) FROM contato_emergencia WHERE idoso_id = $1 AND ativo)::int AS contatos,
+                (SELECT count(*) FROM pulseira_revogada)::int AS revogadas`,
+        [idsDeB.idoso],
+      );
+      expect(filhos.rows[0]).toEqual({ alergias: 1, contatos: 1, revogadas: 0 });
       const u = await c.query(
         "SELECT id FROM usuario WHERE id = ANY($1) AND ativo AND bloqueado_ate IS NULL",
         [idsDeB.usuarios],
@@ -243,7 +323,11 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
   });
 
   it("toda resposta de listagem da casa A é só da casa A (e não está vazia)", async () => {
-    for (const r of rotas.filter((x) => x.metodo === "GET" && x.acesso !== "dispositivo")) {
+    const listagens = rotas.filter(
+      (x) => x.metodo === "GET" && x.acesso !== "dispositivo" && !temParametro(x),
+    );
+    expect(listagens.map(chave)).toContain("GET /idosos");
+    for (const r of listagens) {
       const resp = await gestorA.nav.chamar("GET", concreta(r));
       expect(resp.status, chave(r)).toBe(200);
       const texto = JSON.stringify(resp.corpo);
@@ -254,6 +338,35 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
     expect(usuarios).toContain(enfermeiroA.usuarioId);
     const aparelhos = JSON.stringify((await gestorA.nav.get("/admin/dispositivos")).corpo);
     expect(aparelhos).toContain("Tablet da Casa A");
+    expect(JSON.stringify((await gestorA.nav.get("/idosos")).corpo)).toContain(idosoDeA);
+  });
+
+  it("a leitura de pulseira da casa A não encontra a pulseira da casa B (nem pelo QR)", async () => {
+    const antes = await auditoriaDe(casaB);
+    for (const leitura of [
+      idsDeB.pulseira,
+      `ILPI:I:${idsDeB.pulseira}`,
+      idsDeB.pulseira.toLowerCase(),
+    ]) {
+      for (const ator of [cuidadorTabletA, gestorA]) {
+        const resp = await ator.nav.post("/pulseira/localizar", { leitura });
+        expect(resp.status).toBe(404);
+        expect(resp.corpo).toEqual({ erro: "pulseira_desconhecida" });
+      }
+    }
+    expect(await auditoriaDe(casaB)).toBe(antes);
+  });
+
+  it("o idoso da casa B nunca aparece em nenhuma listagem ou detalhe da casa A", async () => {
+    const detalheA = JSON.stringify((await gestorA.nav.get(`/idosos/${idosoDeA}`)).corpo);
+    expect(detalheA).toContain("Idosa da Casa A");
+    for (const c of canarios) expect(detalheA).not.toContain(c);
+    const lido = await obterIdoso(
+      servico(),
+      await criarAtorWeb(servico, migrador, casaA, "gestor"),
+      idsDeB.idoso,
+    );
+    expect(lido).toEqual({ ok: false, motivo: "nao_encontrado" });
   });
 
   it("o tablet da casa A não lista nem aceita usuários da casa B", async () => {

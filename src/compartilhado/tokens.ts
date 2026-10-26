@@ -26,3 +26,8 @@ export function gerarCodigoDeAtivacao(tamanho = 10): string {
 export function normalizarCodigoDeAtivacao(texto: string): string {
   return texto.toUpperCase().replace(/[\s-]/g, "");
 }
+
+/** Código opaco de 20 caracteres (~100 bits) para pulseiras e etiquetas. Sem 0/O/1/I/L. */
+export function gerarCodigoOpaco(): string {
+  return gerarCodigoDeAtivacao(20);
+}
