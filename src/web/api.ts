@@ -46,6 +46,7 @@ import {
 import { ROTAS_ESCALA } from "./rotas-escala";
 import { ROTAS_ADMINISTRACAO } from "./rotas-administracao";
 import { ROTAS_ALERTAS } from "./rotas-alertas";
+import { ROTAS_RELATORIOS } from "./rotas-relatorios";
 import { ROTAS_ESTOQUE } from "./rotas-estoque";
 import { ROTAS_IDOSOS } from "./rotas-idosos";
 import { ROTAS_PRESCRICOES } from "./rotas-prescricoes";
@@ -389,6 +390,7 @@ const ROTAS: Rota[] = [
   ...ROTAS_ESTOQUE,
   ...ROTAS_ADMINISTRACAO,
   ...ROTAS_ALERTAS,
+  ...ROTAS_RELATORIOS,
 ];
 
 export type DescricaoDeRota = {

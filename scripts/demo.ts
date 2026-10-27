@@ -112,6 +112,16 @@ const carla = exigir(
   }),
   "enfermeira",
 );
+// Gestor com acesso pelo computador (a gestora acima age só por este script).
+exigir(
+  await criarUsuario(servico, gestora, {
+    nome: "Marcos (gestor)",
+    perfil: "gestor",
+    email: `marcos-${gestorId.slice(0, 8)}@demo.test`,
+    senhaInicial: SENHA_PROVISORIA,
+  }),
+  "gestor",
+);
 // Na demonstração, o PIN já vale como definitivo (na vida real, a pessoa troca no primeiro uso).
 await comContexto(migrador, { casaId }, (c) =>
   c.query("UPDATE usuario SET pin_trocar = false WHERE id = ANY($1::uuid[])", [
@@ -266,6 +276,9 @@ a Penicilina). SOS: Paracetamol para Aparecida.
 
 Computador (/entrar): ${`carla-${gestorId.slice(0, 8)}@demo.test`}, senha provisória ${SENHA_PROVISORIA}
   No primeiro acesso: configurar o autenticador e trocar a senha.
+
+Gestão (/entrar): ${`marcos-${gestorId.slice(0, 8)}@demo.test`}, senha provisória ${SENHA_PROVISORIA}
+  Vê também Exceções, Auditoria e Configurações.
 
 Alertas abertos: ${alertas.abertos} (estoque baixo da Varfarina, validade da Dipirona).
 

@@ -217,6 +217,7 @@ Visão por idoso, visão por medicamento, lista de reposição sugerida (export�
 | Ver, ler e encerrar alertas | Não | Sim | Sim |
 | Gerenciar usuários e configurações | Não | Não | Sim |
 | Ver auditoria e relatório de exceções | Não | Não | Sim |
+| Exportar os dados de um idoso (LGPD) | Não | Não | Sim |
 
 Menor privilégio. Quem cadastra uma prescrição de alto risco não a valida sozinho. Usuário desligado perde o acesso imediatamente, mantendo o histórico. Ninguém apaga registros: correções exigem justificativa e entram na auditoria.
 

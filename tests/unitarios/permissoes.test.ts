@@ -23,6 +23,7 @@ const ESPERADO: Record<Acao, Record<Perfil, boolean>> = {
   "usuarios.gerir": { cuidador: false, enfermeiro: false, gestor: true },
   "configuracoes.gerir": { cuidador: false, enfermeiro: false, gestor: true },
   "dispositivos.gerir": { cuidador: false, enfermeiro: false, gestor: true },
+  "lgpd.exportar": { cuidador: false, enfermeiro: false, gestor: true },
   "auditoria.ver": { cuidador: false, enfermeiro: false, gestor: true },
   "relatorio_excecoes.ver": { cuidador: false, enfermeiro: false, gestor: true },
 };

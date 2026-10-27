@@ -33,3 +33,41 @@ export async function chamar<T = Record<string, unknown>>(
 export function novaChave(): string {
   return crypto.randomUUID();
 }
+
+/**
+ * Pede um arquivo à API (POST) e o entrega ao navegador para salvar. Em erro, devolve o mesmo
+ * formato de `chamar`, para a tela tratar (por exemplo, pedir a senha de novo).
+ */
+export async function baixar(
+  caminho: string,
+  corpo: unknown,
+  nomePadrao: string,
+): Promise<Resposta> {
+  try {
+    const r = await fetch(`/api${caminho}`, {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corpo),
+    });
+    if (!r.ok) {
+      const tipo = r.headers.get("content-type") ?? "";
+      const dados = (tipo.includes("json") ? await r.json() : {}) as { erro?: string };
+      return { status: r.status, corpo: dados, semRede: false };
+    }
+    const nome =
+      /filename="([^"]+)"/.exec(r.headers.get("content-disposition") ?? "")?.[1] ?? nomePadrao;
+    const url = URL.createObjectURL(await r.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nome;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return { status: 200, corpo: {}, semRede: false };
+  } catch {
+    return { status: 0, corpo: {}, semRede: true };
+  }
+}

@@ -149,3 +149,9 @@
 - Migração `0009_alertas.sql`: `alerta` (chave da condição, um aberto por chave, só evolui, resolvido não reabre), `alerta_leitura`, `envio_alerta` (fila), novas tarefas do agendador.
 - Decisões: aviso de estoque = maior entre o limite e o prazo de reposição; dose atrasada (aviso) → sem registro (urgente, enfermagem) → gestão no fim do plantão (padrão 07:00 e 19:00) ou se não lida em 2 h; e-mail só para urgentes, salvo configuração; exceções: resumo de ontem (informativo) e 3 ou mais da mesma pessoa em 7 dias (urgente); SOS além do limite: aviso informativo a partir da trilha; permissão `alertas.ver` (enfermagem e gestão), também na tabela 7.1 da spec.
 - Painel `/painel` (com `/entrar`: senha, autenticador com QR no primeiro acesso, troca de senha provisória) e alertas no tablet para enfermagem e gestão.
+
+## M7 — Gestão e auditoria (concluído em 2026-10-26)
+- Sem migração nova: tudo lê tabelas existentes (`auditoria`, `excecao_conferencia`, `administracao` e o cadastro). Módulo novo `relatorios` (consulta da trilha, exceções, exportação LGPD), para não criar dependência circular entre `auditoria` e `identidade`.
+- Decisões: consultar a trilha não deixa rastro (seria uma linha por clique); exportar (trilha, exceções, residente) exige senha confirmada e deixa rastro com filtro e contagem, nunca o conteúdo. Período no fuso da casa, fim inclusivo; exportação da trilha limitada a 20 mil linhas (aviso de truncamento); PDF resumido, planilha completa. Exportação do residente só para o gestor (`lgpd.exportar`, na tabela 7.1), em JSON, com CPF e telefones por extenso, sem código da pulseira, chave da foto nem IP.
+- Telas: `/painel` com menu por perfil; Residentes (lista, cadastro, ficha com alergias, contatos, situação, pulseira, exportação), Exceções, Auditoria (filtros, planilha, PDF, integridade da cadeia) e Configurações (janela e limites dos alertas).
+- Pendente: telas de remédios, prescrições, estoque e equipe/tablets no computador.

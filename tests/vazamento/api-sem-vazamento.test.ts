@@ -84,6 +84,7 @@ const CORPOS_VALIDOS: Record<string, unknown> = {
   "/admin/usuarios/:id/redefinir-pin": { novoPin: "273915" },
   // Corpos válidos: o 404 tem que vir do isolamento, não de uma validação que falhou antes.
   "/idosos/:id/editar": { quarto: "invadido" },
+  "/admin/idosos/:id/exportacao": {},
   "/idosos/:id/status": { status: "desligado" },
   "/idosos/:id/alergias": { substancia: "Veneno", gravidade: "grave" },
   "/idosos/:id/contatos": { nome: "Intruso", parentesco: "Ninguém", telefone: "11999990000" },
@@ -524,7 +525,7 @@ describe("isolamento entre casas (todas as rotas com identificador)", () => {
                   ? [idsDeB.inventario]
                   : r.caminho.startsWith("/admin/dispositivos")
                     ? [idsDeB.dispositivo]
-                    : r.caminho.startsWith("/idosos")
+                    : r.caminho.startsWith("/admin/idosos") || r.caminho.startsWith("/idosos")
                       ? [idsDeB.idoso]
                       : r.caminho.startsWith("/medicamentos")
                         ? [idsDeB.medicamento]

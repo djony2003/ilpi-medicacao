@@ -25,6 +25,7 @@ const PERMISSOES = {
   "dispositivos.gerir": SO_GESTAO,
   "auditoria.ver": SO_GESTAO,
   "relatorio_excecoes.ver": SO_GESTAO,
+  "lgpd.exportar": SO_GESTAO,
 } as const satisfies Record<string, readonly Perfil[]>;
 
 export type Acao = keyof typeof PERMISSOES;

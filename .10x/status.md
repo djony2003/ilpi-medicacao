@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de medicação para casas de idosos (ILPI)
 **Feature atual:** medicacao-ilpi (V1)
-**Fase atual:** Fase 4 — Implementação. M6 concluído; próximo: M7 (gestão e auditoria)
+**Fase atual:** Fase 4 — Implementação. M7 concluído; próximo: M8 (verificação e prontidão), com aval do usuário
 **Atualizado em:** 2026-10-26
 
 ## Fases
@@ -12,7 +12,7 @@
 | 1. Estratégia | Concluída |
 | 2. Design | Concluída. ADR-001 aceito |
 | 3. Planejamento | Concluída. 62 tarefas em 9 marcos |
-| 4. Implementação | Em andamento. M0 a M6 concluídos (T01 a T52). Próxima tarefa: T53 |
+| 4. Implementação | Em andamento. M0 a M7 concluídos (T01 a T56). Próxima tarefa: T57 |
 | 5. Verificação | Não iniciada |
 | 6. Entrega | Não iniciada |
 
@@ -28,8 +28,11 @@ Plano completo: `.10x/decisions/engineering-manager/medicacao-ilpi.md`
 | M4 Estoque | T29 a T34 | **Concluído** |
 | M5 Administração | T35 a T46 | **Concluído** (usuário seguiu; testes em tablet real depois) |
 | M6 Alertas | T47 a T52 | **Concluído** |
-| M7 Gestão e auditoria | T53 a T56 | Pendente |
+| M7 Gestão e auditoria | T53 a T56 | **Concluído** (telas de remédios, prescrições, estoque e equipe no computador ficam para depois) |
 | M8 Verificação e prontidão | T57 a T62 | Pendente |
+
+## Qualidade em M7
+836 testes passando (46 arquivos), tipos, lint, formatação e build limpos, `npm audit` sem vulnerabilidades. Três testes de mutação detectados (reautenticação da exportação LGPD, escape do curinga no filtro de ação, proteção contra fórmula no CSV). Isolamento: a casa B tem exceção e trilha próprias, e nenhum relatório da casa A as mostra; a malha de vazamento cobre as rotas novas (inclusive `/admin/idosos/:id/exportacao` com id da casa B). Ponta a ponta no Chromium (`npm run e2e:painel`, 12 telas): enfermeira vê só Alertas e Residentes e é barrada nas telas da gestão; gestor exporta planilha e PDF da trilha e das exceções, confere a integridade da cadeia, muda a janela e os limites (com a senha), e baixa os dados de um residente.
 
 ## Qualidade em M6
 802 testes passando (45 arquivos), tipos, lint, formatação e build limpos, `npm audit` sem vulnerabilidades (nodemailer na versão 10, sem as falhas das antigas). Doze testes de mutação detectados (informativo, silêncio após tratado, escalonamento e reaviso só sem leitura, e-mail de aviso, prazo de reposição, fim do plantão, janela, dose registrada, descarte de e-mail, e-mail sem dado clínico, fechamento por leitura). Malha de vazamento com alerta canário da casa B. Ponta a ponta no Chromium: `npm run e2e:painel` (entrada com autenticador, troca de senha, painel, ler, encerrar, tablet da enfermeira) e `npm run e2e:tablet`.
@@ -56,7 +59,7 @@ Nenhum.
 - **A CI do GitHub não inicia:** os jobs falham em segundos com "conta bloqueada por problema de cobrança" (confirmado nas execuções de M0, M1 e M2). Não é falha do código: precisa o dono da conta resolver a cobrança no GitHub. Enquanto isso, a verificação roda localmente (`npm run verificar`).
 - Reavaliar a migração do ESLint 9 para o 10.
 - Limite de tentativas por IP no login, âncora externa da auditoria, limpeza de sessões (todos para M8; detalhes em `decisions/sde`).
-- Telas (login, tablet, administração, idosos, prescrições) ainda não existem (o motor e a API estão prontos); entram junto com as telas de cada marco.
+- Telas no computador que ainda não existem (API pronta): cadastro de remédios e prescrições, estoque (entrada, etiquetas, reposição, inventário) e equipe/tablets. Existem: alertas, residentes, exceções, auditoria e configurações.
 - Provedor de armazenamento de receitas e serviço de chaves (hoje disco local e chave única); decidir com o fornecedor de hospedagem antes de M8.
 - Consulta regulatória (Anvisa, COREN, vigilância sanitária).
 - Revisão jurídica (contratos, privacidade, retenção da auditoria).
