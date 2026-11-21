@@ -13,6 +13,9 @@ import { ProvedorDoPainel, type Eu } from "./contexto";
 const MENU: Array<{ caminho: string; nome: string; so?: "gestor" }> = [
   { caminho: "/painel", nome: "Alertas" },
   { caminho: "/painel/residentes", nome: "Residentes" },
+  { caminho: "/painel/remedios", nome: "Remédios" },
+  { caminho: "/painel/estoque", nome: "Estoque" },
+  { caminho: "/painel/equipe", nome: "Equipe", so: "gestor" },
   { caminho: "/painel/excecoes", nome: "Exceções", so: "gestor" },
   { caminho: "/painel/auditoria", nome: "Auditoria", so: "gestor" },
   { caminho: "/painel/configuracoes", nome: "Configurações", so: "gestor" },

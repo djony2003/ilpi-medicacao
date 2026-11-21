@@ -8,6 +8,7 @@ import { baixar, chamar } from "../../../_comum/api";
 import { useAoAbrir } from "../../../_comum/ao-abrir";
 import { useComSenha } from "../../../_comum/pedir-senha";
 import { usePainel } from "../../contexto";
+import { PrescricoesDoResidente } from "./prescricoes";
 
 // Ficha do residente: dados, alergias, contatos, pulseira e, para a gestão, a exportação dos
 // dados (LGPD). CPF e telefones aparecem mascarados; mostrá-los por extenso é uma ação registrada.
@@ -357,6 +358,9 @@ export default function FichaDoResidente() {
           </p>
         )}
       </div>
+      {(eu.perfil === "gestor" || eu.perfil === "enfermeiro") && (
+        <PrescricoesDoResidente idosoId={id} aoPerderSessao={aoPerderSessao} />
+      )}
       {dialogo}
     </section>
   );

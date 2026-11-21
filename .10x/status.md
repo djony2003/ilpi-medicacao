@@ -65,3 +65,6 @@ Nenhum.
 - Revisão jurídica (contratos, privacidade, retenção da auditoria).
 - **Validação de mercado com 2 ou 3 casas: agora** (decisão do usuário após M3). Já existe o que mostrar: escala do plantão (API), folha de contingência em PDF, pulseira com QR; faltam as telas.
 - Escolha do fornecedor de hospedagem e de e-mail (antes de M8).
+
+## Telas no computador (2026-11-21)
+Adicionadas `/painel/equipe` (gestão), `/painel/estoque` e `/painel/remedios` (enfermagem e gestão) e a seção de prescrições na ficha do residente. Só API existente; sem testes novos (modo enxuto). Pendente: ver as telas no navegador/tablet real.
