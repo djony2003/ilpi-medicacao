@@ -1481,3 +1481,22 @@ select.campo__entrada {
   background: var(--superficie);
   border-radius: var(--raio);
 }
+
+/* Celular: o menu vira uma faixa rolável embaixo da marca, em vez de ocupar meia tela. */
+@media (max-width: 720px) {
+  .barra {
+    flex-wrap: wrap;
+  }
+  .menu {
+    order: 3;
+    flex: 1 0 100%;
+    flex-wrap: nowrap;
+    margin: 0 -0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+  .menu__item {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
